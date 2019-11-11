@@ -19,7 +19,7 @@ fi
 cut -f1,2 02_reference/genome.fasta.fai > 02_reference/genome.genome
 
 bedtools merge -i 05_bed_files_for_analysis/cpg_islands.gff > 05_bed_files_for_analysis/cpg_islands.bed
-rm 05_bed_files_for_analysis/cpg_islands.gff
+#rm 05_bed_files_for_analysis/cpg_islands.gff
 
 bedtools slop -i 05_bed_files_for_analysis/cpg_islands.bed -g 02_reference/genome.genome -b 2000 |
 bedtools merge -i stdin |
