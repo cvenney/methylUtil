@@ -4,9 +4,9 @@ Scripts to:
 
 1) mask C/T polymorphisms in BSseq data 
 2) process genome and annotation to identify:
-   1) transcriptional start sites (TSS)
-   2) promoter regions
-   3) CpG islands and shores
+   - transcriptional start sites (TSS)
+   - promoter regions
+   - CpG islands and shores
 
 
 
@@ -14,11 +14,9 @@ Scripts to:
 
 #### Software
 
-  samtools v1.8+: https://samtools.github.io/ 
-
-  bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/ 
-
-  EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html 
+samtools v1.8+: https://samtools.github.io/  
+bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/  
+EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html  
 
 #### Data
 
