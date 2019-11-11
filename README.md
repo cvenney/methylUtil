@@ -1,14 +1,11 @@
 # methylUtil
 
-Scripts to:
-
+Scripts to:  
 1) mask C/T polymorphisms in BSseq data 
 2) process genome and annotation to identify:
    - transcriptional start sites (TSS)
    - promoter regions
    - CpG islands and shores
-
-
 
 ## Pre-requisites
 
@@ -25,8 +22,6 @@ EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html
 - BSseq results in bedGraph format (similar to that output by Bismark or MethylDackel)
 - BED file of C/T and A/G SNP polymorphisms 
 
-
-
 ## Usage
 
 1) Copy or download the genome in fasta format into the `./02_reference` folder and rename it "genome.fasta"
@@ -37,13 +32,9 @@ EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html
 
 4) Execute scripts of interest and collect results
 
-
-
 ## Contact
 
 Kyle Wellband - kyle.wellband [at] gmail.com
-
-
 
 ## License
 
