@@ -14,9 +14,9 @@ cut -f1,2 02_reference/genome.fasta.fai > 02_reference/genome.genome
 
 if [[ "${GFF##*.}" == "gz" ]]
 then
-	gunzip -c $GFF | awk '{OFS="\t"}  ($1 !~ /"#.*"/ && $3 == "gene") {if ($7 == "+") {print $1, $4 - 1, $4, $9, ".", $7} else if($7 == "-") {print $1, $5, $5 + 1, $9, ".", $7}}' > 05_bed_files_for_analysis/tss.bed
+	gunzip -c $GFF | awk 'BEGIN{OFS="\t"}  ($1 !~ /"#.*"/ && $3 == "gene") {if ($7 == "+") {print $1, $4 - 1, $4, $9, ".", $7} else if($7 == "-") {print $1, $5, $5 + 1, $9, ".", $7}}' > 05_bed_files_for_analysis/tss.bed
 else
-	cat $GFF | awk '{OFS="\t"}  ($1 !~ /"#.*"/ && $3 == "gene") {if ($7 == "+") {print $1, $4 - 1, $4, $9, ".", $7} else if($7 == "-") {print $1, $5, $5 + 1, $9, ".", $7}}' > 05_bed_files_for_analysis/tss.bed
+	cat $GFF | awk 'BEGIN{OFS="\t"}  ($1 !~ /"#.*"/ && $3 == "gene") {if ($7 == "+") {print $1, $4 - 1, $4, $9, ".", $7} else if($7 == "-") {print $1, $5, $5 + 1, $9, ".", $7}}' > 05_bed_files_for_analysis/tss.bed
 fi
 
 bedtools slop -i 05_bed_files_for_analysis/tss.bed -g $GENOME -l 1000 -r 200 -s > 05_bed_files_for_analysis/promotors.bed
