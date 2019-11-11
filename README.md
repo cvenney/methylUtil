@@ -13,7 +13,7 @@ Scripts to:
 
 samtools v1.8+: https://samtools.github.io/  
 bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/  
-EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html  
+EMBOSS v6.6.0+: http://emboss.sourceforge.net/index.html  
 
 #### Data
 
