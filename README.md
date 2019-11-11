@@ -2,23 +2,23 @@
 
 Scripts to:
 
-1) mask C/T polymorphisms in BSseq data, and 
+1) mask C/T polymorphisms in BSseq data 
 2) process genome and annotation to identify:
-...1) transcriptional start sites (TSS)
-...2) promoter regions
-...3) CpG islands and shores
+   1) transcriptional start sites (TSS)
+   2) promoter regions
+   3) CpG islands and shores
 
----
+
 
 ## Pre-requisites
 
 #### Software
 
-samtools v1.8+: https://samtools.github.io/ 
+  samtools v1.8+: https://samtools.github.io/ 
 
-bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/ 
+  bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/ 
 
-EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html 
+  EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html 
 
 #### Data
 
@@ -26,6 +26,8 @@ EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html
 - Gene annotation information in GFF format (only required for creating accessory BED files)
 - BSseq results in bedGraph format (similar to that output by Bismark or MethylDackel)
 - BED file of C/T and A/G SNP polymorphisms 
+
+
 
 ## Usage
 
@@ -37,11 +39,13 @@ EMBOSS v6.6.6+: http://emboss.sourceforge.net/index.html
 
 4) Execute scripts of interest and collect results
 
----
+
 
 ## Contact
 
 Kyle Wellband - kyle.wellband [at] gmail.com
+
+
 
 ## License
 
