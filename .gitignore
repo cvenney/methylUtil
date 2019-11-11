@@ -1,0 +1,17 @@
+*.gff
+*.gtf
+*.bai
+*.bam
+*.bed
+*.fasta
+*.fasta.*
+*.fastq
+*.gz
+*.html
+*.ids
+*.json
+*.log
+*.vcf
+*~
+10_log_files/*
+11_metrics/*

@@ -5,11 +5,12 @@
 GFF="02_reference/genes.gff.gz"
 GENOME="02_reference/genome.fasta"
 
-if [[ $GFF == "" ]]
+if [[ ! -e 02_reference/genome.fasta.fai ]]
 then
-	echo "You forgot the input file!"
-	exit
+    samtools faidx 02_reference/genome.fasta
 fi
+
+cut -f1,2 02_reference/genome.fasta.fai > 02_reference/genome.genome
 
 if [[ "${GFF##*.}" == "gz" ]]
 then
