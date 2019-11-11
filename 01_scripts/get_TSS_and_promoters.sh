@@ -3,7 +3,7 @@
 # get_TSS_and_promoters.sh
 
 GFF="02_reference/genes.gff.gz"
-GENOME="02_reference/genome.fasta"
+GENOME="02_reference/genome.genome"
 
 if [[ ! -e 02_reference/genome.fasta.fai ]]
 then
