@@ -2,7 +2,7 @@
 
 # remove_CT_SNPs_from_bedGraphs.sh
 
-INPUT="03_methylation_bedGraphs"
+INPUT="03_raw_bedGraphs"
 OUTPUT="04_filtered_bedGraphs"
 NCPUS=4
 

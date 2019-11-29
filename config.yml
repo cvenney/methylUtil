@@ -1,0 +1,49 @@
+input:
+    # plain text file list of the chromosomes to process 
+    ## NB: the bedGraph files must be split by chr
+    
+    chrs: 02_reference/chrs.txt
+
+    # plain text file containing at a minimum:,
+        # 1) column named "sample" with unique sample ID
+        # 2) column(s) indicating the grouping to test for differential methylation
+        # 3) column named "file" indicating path to each *.bedGraph.gz file 
+    
+    sample_info: sample_info.txt
+    
+
+options:
+    # Number of cores for parallel computation (only works on *unix systems)
+    # set to "0" to use all cores, keep in mind memory requirements for each thread
+    n_cores: 4
+    
+    # Minimum and maximum read coverage thresholds (inclusive thresholds: e.g. coverage >= min, coverage <= max)
+    min_coverage: 5
+    max_coverage: 30
+    
+    # Minimum number of individuals meeting coverage requirements
+    min_individuals: 20
+    
+    # Analysis_type options are:
+        # 1) "wald" for two group testing, or
+        # 2) "glm" for multi-factor analysis
+    analysis_type: wald
+
+    # Specify model formula (e.g. "~ Treatment")
+    formula: "~ group"
+
+    # These will be used to order the factor for Wald tests (ignored for now in 'glm')
+    reference_condition: A
+    treatment_conditions: B
+    
+    # Minimum change in methylation (only relevant for analysis_type = "wald")
+    delta: 0.2
+    
+    # FDR
+    fdr: 0.01
+
+
+output:
+    # Name prefix for the output files
+    outfile_prefix: 06_results/DSS_results
+
