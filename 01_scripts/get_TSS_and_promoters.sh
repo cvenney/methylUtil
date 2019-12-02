@@ -19,5 +19,5 @@ else
 	cat $GFF | awk 'BEGIN{OFS="\t"}  ($1 !~ /"#.*"/ && $3 == "gene") {if ($7 == "+") {print $1, $4 - 1, $4, $9, ".", $7} else if($7 == "-") {print $1, $5, $5 + 1, $9, ".", $7}}' > 05_bed_files_for_analysis/tss.bed
 fi
 
-bedtools slop -i 05_bed_files_for_analysis/tss.bed -g $GENOME -l 1000 -r 200 -s > 05_bed_files_for_analysis/promotors.bed
+bedtools slop -i 05_bed_files/tss.bed -g $GENOME -l 1000 -r 200 -s > 05_bed_files/promotors.bed
 

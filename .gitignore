@@ -13,6 +13,9 @@
 *.json
 *.log
 *.vcf
+*.txt
+*.png
+*.pdf
 *~
 10_log_files/*
 11_metrics/*
