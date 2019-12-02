@@ -15,9 +15,8 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 
 args <- commandArgs(T)
-# args <- "~/Projects/safo_epi/config_unpaired.yml"
-# args <- "~/Projects/sasa_epi/config.yml"
-# args <- "~/Projects/safo_epi/dummy_config.yml"
+# args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"
+# args <- "~/Projects/sasa_epi/methylUtil/config_8x8_glm.yml"
 
 ## Sanity checking
 if (length(args) != 1)
@@ -66,6 +65,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
         stop("Factors specified in formula design are not present in the ")
     design <- data.frame(samples[, formula_parts])
     design[] <- lapply(design, factor)
+    names(design) <- formula_parts
 }
 
 
@@ -73,45 +73,48 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
 if (is.null(config$options$n_cores)) {
     warning("\'n_cores\' not specified. Default to using 1 core.")
     n_cores <- 1
+} else {
+    if (config$options$n_cores == 0)
+        warning("Using all cores will require a lot of memory")
+    n_cores <- ifelse(config$options$n_cores == 0, detectCores(), config$options$n_cores)
+    setDTthreads(1)
 }
-    
-if (config$options$n_cores == 0)
-    warning("Using all cores will require a lot of memory")
-
-n_cores <- ifelse(config$options$n_cores == 0, detectCores(), config$options$n_cores)
-setDTthreads(1)
 
 # Set coverage options for filtering
 if (is.null(config$options$max_coverage)) {
     warning("\'max_coverage\' not specified. Default to using a value of 30.")
     max_cov <- 30L
-} else
+} else {
     max_cov <- config$options$max_coverage
+}
 
 if (is.null(config$options$max_coverage)) {
     warning("\'max_coverage\' not specified. Default to using a value of 10.")
     min_cov <- 10L
-} else
+} else {
     min_cov <- config$options$min_coverage
+}
 
 if (is.null(config$options$max_coverage)) {
     warning("\'min_individuals\' not specified. Requiring coverage for all individuals.")
     min_ind <- nrow(samples)
-} else
+} else {
     min_ind <- config$options$min_individuals
+}
 
 if (is.null(config$options$fdr) | !is.numeric(config$options$fdr)) {
     warning("Invalid FDR. Default to using a value of 0.05.")
     fdr <- 0.05
-} else
+} else {
     fdr <- config$options$fdr
+}
 
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(config$options$delta) | !is.numeric(config$options$delta))) {
     warning("Delta required for Wald tests. Default to using a value of 0.1.")
     delta <- 0.1
-} else
+} else {
     delta <- config$options$delta
-
+}
 
 # Fit models
 dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
