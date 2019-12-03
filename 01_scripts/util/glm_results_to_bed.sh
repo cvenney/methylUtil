@@ -12,7 +12,7 @@ outdir="05_bed_files"
 file=$1
 name=$(basename $(echo $file | perl -pe 's/(\.txt)(\.gz)//g'))
 
-if [ ${file%*.} == "gz" ]
+if [ ${file##*.} == "gz" ]
 then
     gunzip -c $file | 
     awk -v OFS="\t" '(NR != 1){
