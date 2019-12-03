@@ -11,7 +11,7 @@ fi
 file=$1
 settings=$2
 
-dml=${gunzip -c "${file}dml${settings}" | awk 'END{print NR -1}')
+dml=$(gunzip -c "${file}dml${settings}" | awk 'END{print NR -1}')
 
 gunzip -c "${file}dmr${settings}" | 
 awk -v dml=$dml '(NR != 1) {
@@ -19,3 +19,4 @@ awk -v dml=$dml '(NR != 1) {
 } END {
     print NR - 1 " DMRs contain " sum " (" (sum/dml*100) "%) DMLs"
 }'
+
