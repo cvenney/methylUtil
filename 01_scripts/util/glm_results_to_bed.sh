@@ -17,11 +17,11 @@ then
     gunzip -c $file | 
     awk -v OFS="\t" '(NR != 1){
         print $1, $2, $3, "nCG=" $5 ";score=" $6, $6, "."
-    }' > ${outdir}/${name}.bed
+    }' | sort -k1,2 > ${outdir}/${name}.bed
 else
     cat $file | 
     awk -v OFS="\t" '(NR != 1){
         print $1, $2, $3, "nCG=" $5 ";score=" $6, $6, "."
-    }' > ${outdir}/${name}.bed
+    }' | sort -k1,2 > ${outdir}/${name}.bed
 fi
 
