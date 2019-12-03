@@ -17,6 +17,6 @@ gunzip -c "${file}dmr${settings}" |
 awk -v dml=$dml '(NR != 1) {
     sum += $5
 } END {
-    print NR - 1 " DMRs contain " sum " (" (sum/dml*100) "%) DMLs"
+    print NR - 1 " DMRs contain " sum " / " dml " (" (sum/dml*100) "%) DMLs"
 }'
 
