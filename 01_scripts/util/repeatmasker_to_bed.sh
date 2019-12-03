@@ -9,7 +9,7 @@ fi
 
 outdir="05_bed_files"
 file=$1
-name=$(basename $(echo $file | perl -pe 's///'))
+name=$(basename $(echo $file | perl -pe 's/\.out\.gz//'))
 
 if [ ${file##*.} == "gz" ]
 then
