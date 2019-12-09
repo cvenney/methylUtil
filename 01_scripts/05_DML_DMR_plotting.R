@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 ## Methylation plotting
 
-for (p in c("tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "ComplexHeatmap", "DSS", "bsseq", "vegan", "parallel", "GenomicAlignments")) {
+for (p in c("configr","tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "ComplexHeatmap", "DSS", "bsseq", "vegan", "parallel")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
         if(p %in% c("ComplexHeatmap", "DSS", "bsseq", "GenomicAlignments")) {
@@ -12,52 +12,124 @@ for (p in c("tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "Com
     rm(p)
 }
 
-kyles_theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12, colour = "black"), 
-                                 axis.title = element_text(size = 14, colour = "black"),
-                                 panel.grid = element_blank())
+theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12, colour = "black"), 
+                                              axis.title = element_text(size = 14, colour = "black"),
+                                              panel.grid = element_blank())
 
 args <- commandArgs(T)
-# args <- c("~/Projects/sasa_epi/sample_info_NC_027307.1.txt", "~/Projects/sasa_epi/03_results/DSS_two_group_test.txt.gz")
+# args <- "~/Projects/sasa_epi/methylUtil/config_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
 
-if (length(args) != 2)
-    stop("Usage: DSS_DML_DMR.R <sample info file> <DM results>")
+## Sanity checking
+if (length(args) != 1)
+    stop("Usage: 05_DML_DMR_plotting.R <config.yml>")
 
-samples <- read.table(args[1], header = T, stringsAsFactors = FALSE)
+if (!is.yaml.file(args[1]))
+    stop("You must supply a configuration file in YAML format.\nUsage: 05_DML_DMR_plotting.R <config.yml>")
 
-if(!identical(colnames(samples), c("sample", "group", "family", "file")))
-    stop("Samples file must contain a header row with names: \'sample\', \'group\', \'family\', \'file\'")
+config <- read.config(args[1])
 
 
-#### Load data ####
+# Parse formula
+if (is.null(config$options$formula) | !grepl("\\~", config$options$formula))
+    stop("Invalid formula. You must provide a design formula beginning with a tilde (e.g. \'~ Treatment\')")
 
-data_list <- lapply(1:nrow(samples), function(i) {
-    file <- fread(samples[i, "file"], header = FALSE)[,c(-3:-4)]
-    file <- file[V1 %like% c("NC_.*")]
-    file[, V7 := V5 + V6]
-    return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
+formula <- as.formula(config$options$formula)
+formula_parts <- unlist(strsplit(config$options$formula, split = c("\\~ |\\~|\\s\\+\\s|\\s\\+|\\+\\s|\\+|\\*|\\s\\*|\\s\\*\\s|\\*\\s|\\:")))[-1]
+
+
+# Load files and set up design
+samples <- read.table(config$input$sample_info, header = T, stringsAsFactors = FALSE)
+chrs <- read.table(config$input$chrs, header = FALSE, stringsAsFactors = FALSE)[,1]
+
+if(!all(c("sample", "file", formula_parts) %in% colnames(samples)))
+    stop("Samples file must contain a header row with names: \'sample\', \'file\', and given factor(s).")
+
+if (any(!formula_parts %in% colnames(samples)))
+    stop("Factors specified in formula design are not present in the ")
+design <- data.frame(samples[, formula_parts])
+design[] <- lapply(design, factor)
+names(design) <- formula_parts
+
+
+# Set number of cores for parallel computing
+if (is.null(config$options$n_cores)) {
+    warning("\'n_cores\' not specified. Default to using 1 core.")
+    n_cores <- 1
+} else {
+    if (config$options$n_cores == 0)
+        warning("Using all cores will require a lot of memory")
+    n_cores <- ifelse(config$options$n_cores == 0, detectCores(), config$options$n_cores)
+    setDTthreads(n_cores)
+}
+
+# Set coverage options for filtering
+if (is.null(config$options$max_coverage)) {
+    warning("\'max_coverage\' not specified. Default to using a value of 30.")
+    max_cov <- 30L
+} else {
+    max_cov <- config$options$max_coverage
+}
+
+if (is.null(config$options$max_coverage)) {
+    warning("\'max_coverage\' not specified. Default to using a value of 10.")
+    min_cov <- 10L
+} else {
+    min_cov <- config$options$min_coverage
+}
+
+if (is.null(config$options$max_coverage)) {
+    warning("\'min_individuals\' not specified. Requiring coverage for all individuals.")
+    min_ind <- nrow(samples)
+} else {
+    min_ind <- config$options$min_individuals
+}
+
+if (is.null(config$options$fdr) | !is.numeric(config$options$fdr)) {
+    warning("Invalid FDR. Default to using a value of 0.05.")
+    fdr <- 0.05
+} else {
+    fdr <- config$options$fdr
+}
+
+if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(config$options$delta) | !is.numeric(config$options$delta))) {
+    warning("Delta required for Wald tests. Default to using a value of 0.1.")
+    delta <- 0.1
+} else {
+    delta <- config$options$delta
+}
+
+bs_obj_all <- lapply(chrs, function(chr) {
+    
+    # Create local sample info and adujust filenames for specific chr
+    lsamples <- samples
+    lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
+    
+    message(paste0("Loading chr: ", chr))
+    
+    # Load data and convert to BSseq object
+    data_list <- lapply(1:nrow(samples), function(i) {
+        file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
+        file[, V7 := V5 + V6]
+        return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
+    })
+    bs_obj <- makeBSseqData(data_list, samples[,"sample"])
+    rm(data_list)
+    
+    # Filter CpGs on min and max coverage in min individuals
+    pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
+    bs_obj <- bs_obj[rowSums(pass) >= min_ind,]
+    rm(pass)
+    
+    return(bs_obj)
 })
 
-bs_obj <- makeBSseqData(data_list, samples[,"sample"])
+bs_obj_all <- suppressWarnings(do.call(rbind, bs_obj_all))
 
-rm(data_list)
-
-
-#### Coverage filter ####
-
-# Min and Max coverage
-
-max_cov <- 20
-min_cov <- 5
-
-pass <- bs_obj@assays$data$Cov <= max_cov & bs_obj@assays$data$Cov >= min_cov
-    
-bs_obj <- bs_obj[rowSums(pass) >= 12,]    
-rm(pass, max_cov, min_cov)
 
 #### MDS plot of samples ####
 
-un <- bs_obj@assays[[2]] - bs_obj@assays[[1]]
-me <- bs_obj@assays[[2]]
+un <- getCoverage(bs_obj_all, type = "Cov") - getCoverage(bs_obj_all, type = "M")
+me <- getCoverage(bs_obj_all, type = "M")
 
 M_values <- log2(me + 1) - log2(un + 1)
 colnames(M_values) <- samples[, "sample"]
@@ -66,13 +138,14 @@ rm(un, me)
 mds <- cmdscale(dist(t(M_values)), k = ncol(M_values) - 1)
 colnames(mds) <- paste0("PC",1:ncol(mds))
 mds <- data.frame(Sample = row.names(mds), Group = samples[, "group"], mds)
+fwrite(mds, "06_methylation_results/methylation_MDS.txt", quote = FALSE, sep = "\t")
 
 all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_hline(yintercept = 0, colour = "grey") +
     geom_vline(xintercept = 0, colour = "grey") +
     kyles_theme_adjustments +
     geom_text_repel(aes(label = Sample), nudge_y = -10)
-ggsave("03_results/global_methylation_mds_labs.png", plot = all_mds, device = "png",
+ggsave("06_methylation_results/global_methylation_mds_labs.png", plot = all_mds, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
 all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
@@ -80,18 +153,24 @@ all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_vline(xintercept = 0, colour = "grey") +
     geom_point(size = 2) +
     kyles_theme_adjustments
-ggsave("03_results/global_methylation_mds_points.png", plot = all_mds_points, device = "png",
+ggsave("06_methylation_results/global_methylation_mds_points.png", plot = all_mds_points, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
-rm(mds, all_mds, all_mds_points)
+rm(mds, all_mds, all_mds_points, M_values)
 
 
 ## Methylation ratios by sample
 
-Beta_values <- bs_obj@assays$data$M / bs_obj@assays$data$Cov
-# meth_ratio <- asin(sqrt(bs_obj@assays$data$M / bs_obj@assays$data$Cov))
+Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
+# Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
 
 df <- pivot_longer(as.data.frame(Beta_values), cols = starts_with("LJ"), names_to = "Sample", values_to = "Methylation")
+rm(Beta_values)
+Beta_summary <- df %>% 
+    group_by() %>% 
+    summarise(Mean = mean(, na.rm = TRUE), Median = median(, na.rm = TRUE), SD = sd(, na.rm = TRUE))
+
+fwrite(Beta_summary, "06_methylation_results/Beta_summary_by_individual.txt", quote = FALSE, sep = "\t")
 
 methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     kyles_theme_adjustments +
@@ -101,137 +180,97 @@ methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     ylab("Count")
 ggsave("03_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
        width = 8, height = 8, units = "in", dpi = 300)
-rm(df, methyl_ratio_hist, Beta_values)
+rm(df, methyl_ratio_hist)
 
-
-#### RDA bewteen groups ####
-
-data_rda <- t(as.matrix(M_values))
-# data_rda <- t(as.matrix(Beta_values))
-
-# Simple imputation of NaN with the mean methylation for each position
-for (i in 1:ncol(data_rda)) {
-    data_rda[is.nan(data_rda[,i]), i] <- mean(data_rda[,i], na.rm = TRUE)
-}
-
-parental_origin <- factor(rep(c("SAS", "Wild"), each = 8))
-
-rda <- rda(data_rda ~ parental_origin)
-fwrite(RsquareAdj(rda), "03_results/RDA_Rsquared.txt", sep = "\t")
-
-# aov_results <- anova.cca(rda, parallel = 14)
-# fwrite(aov_results, "03_results/RDA_ANOVA_results.txt", sep = "\t")
-
-rm(data_rda, i)
-
-sc <- scores(rda, choices = c(1:2), scaling = 3)
-sc$sites <- data.frame(sc$sites, Pop = parental_origin)
-rm(rda)
-
-rda_sample_biplot <- ggplot(as.data.frame(sc$sites), aes(x = RDA1, y = PC1, color = Pop)) +
-    kyles_theme_adjustments +
-    geom_hline(yintercept = 0, colour = "grey50") +
-    geom_vline(xintercept = 0, colour = "grey50") +
-    geom_point(size = 3) +
-    #scale_color_manual(values = "") +
-    geom_text(aes(label = rownames(as.data.frame(sc$sites))), nudge_x = 0.1, nudge_y = 0.1, size = 2)
-ggsave("03_results/rda_sample_biplot.png", plot = rda_sample_biplot, device = "png",
-       width = 4.5, height = 4, units = "in", dpi = 300)
-rm(rda_sample_biplot)
-
-rcov <- MASS::cov.rob(sc$species[, "RDA1"]) # robust covariance
-resmaha <- mahalanobis(as.matrix(sc$species[, "RDA1"]), rcov$center, rcov$cov) # test statistic
-lambda <- median(resmaha) / qchisq(0.5, df = 1)
-sc$species <- as.data.frame(sc$species)
-sc$species$pvals <- pchisq(resmaha / lambda, 1, lower.tail = FALSE)
-rm(resmaha, lambda, rcov)
-sc$species$fdr <- p.adjust(sc$species$pvals, method = "BH")
-sc$species$chr <- as.factor(seqnames(bs_obj@rowRanges))
-fwrite(sc$species, "03_results/rda_snp_scores.txt.gz", sep = "\t")
-
-rda_CpG_biplot <- ggplot(sc$species, aes(x = RDA1, y = PC1, colour = fdr < 0.05)) +
-    kyles_theme_adjustments +
-    geom_point() +
-    scale_color_manual(values = c("grey", "lightgreen"))
-ggsave("03_results/rda_CpG_biplot.png", plot = rda_CpG_biplot, device = "png",
-       width = 5, height = 4, units = "in", dpi = 300)
-rm(rda_CpG_biplot)
-
-#rda_manhattan <- ggplot(sc$species, aes(x = 1:nrow(sc$species), y = abs(RDA1), colour = fdr < 0.05)) +
-#    kyles_theme_adjustments +
-#    geom_point(shape = "+")
-#ggsave("03_results/rda_manhattan.png", plot = rda_manhattan, device = "png",
-#       width = 8, height = 4, units = "in", dpi = 300)
-rm(sc, rda_manhattan)
 
 
 #### Diff Methyl results and heatmaps ####
+dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
+    
+    if (flag == 0 ) {
+        dml_summary <- dmls[, .("Diff_Mean" = mean(diff), 
+                                "Diff_Median" = median(diff),
+                                "Diff_SD" = sd(diff),
+                                "stat_Mean" = mean(stat), 
+                                "stat_Median" = median(stat),
+                                "stat_SD" = sd(stat),
+                                "N" = .N), by = sign(stat)]
+    } else if (flag == 1) {
+        dml_summary <- dmls[, .("stat_Mean" = mean(stat), 
+                                "stat_Median" = median(stat),
+                                "stat_SD" = sd(stat),
+                                "N" = .N), by = sign(stat)]
+    }
+    
+    fwrite(dml_summary, paste0("06_methylation_results/DML_hyper_hypo_distribution", coef, ".txt"), quote = FALSE, sep = "\t")
+    
+    dmr_summary <- dmrs[, .("areaStat_Mean" = mean(areaStat), 
+                            "areaStat_Median" = median(areaStat),
+                            "areaStat_SD" = sd(areaStat),
+                            "nCG" = sum(nCG),
+                            "nCG_mean" = mean(nCG),
+                            "nCG_median" = median(nCG),
+                            "nCG_SD" = sd(nCG),
+                            "N" = .N), by = sign(areaStat)]
+    
+    fwrite(dml_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution", coef, ".txt"), quote = FALSE, sep = "\t")
+    
+}
 
-dms <- fread(args[2])
-
-all_density <- ggplot(dms, aes(x = diff * 100, fill = fdr < 0.05)) +
-    geom_density() +
-    kyles_theme_adjustments +
-    scale_fill_brewer(type = "qual", palette = 4) +
-    xlab("Change in methylation (%)") +
-    ylab("Density")
-ggsave("03_results/global_differential_methylation_density.png", plot = all_density, device = "png",
-       width = 5, height = 4, units = "in", dpi = 300)
-rm(all_density)
-
-sig_hist <- ggplot(dms[dms$fdr <0.05, ], aes(x = diff * 100)) +
-    geom_histogram(binwidth = 2) +
-    kyles_theme_adjustments +
-    xlab("Change in methylation (%)") +
-    ylab("Density")
-ggsave("03_results/sig_differential_methylation_hist.png", plot = sig_hist, device = "png",
-       width = 4.5, height = 4, units = "in", dpi = 300)
-rm(sig_hist)
-
+DMR_heatmap <- function(dmrs, Betas, sample_info, coef = NULL) {
+    
+    ldmrs <- GRanges(
+        seqnames = Rle(dmrs$chr),
+        range = IRanges(start = dmrs$start, end = dmrs$end),
+        nCG = dmrs$nCG,
+        diffMethyl = dmrs$diff.Methy,
+        areaStat = dmrs$areaStat
+    )
+    
+    ldmrs <- sort(ldmrs)
+    
+    hits <- findOverlaps(Betas, ldmrs, ignore.strand = TRUE)
+    ldmr <- Betas[queryHits(hits)]
+    mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
+    rm(ldmr, hits)
+    
+    png(filename = paste0("06_methylation_results/", coef, "DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
+    Heatmap(
+        matrix = as.matrix(mcols(dmrs)[samples_info[,"sample"]]),
+        cluster_rows = TRUE,
+        #row_split = factor(paste0(seqnames(dmr$dmrs), ":", start(dmr$dmrs), "-", end(dmr$dmrs))),
+        row_title = NULL,
+        #cluster_row_slices = TRUE,
+        cluster_columns = FALSE,
+        column_split = as.character(sample_info[,coef]),
+        use_raster = TRUE,
+        raster_device = "png"
+    )
+    dev.off()
+    
+}
 
 ## Differential Methylation
-
-dmls <- callDML(dms, delta = 0.2, p.threshold = 0.01)
-fwrite(dmls, "03_results/differentially_methylated_loci_delta20_fdr0.01.txt", sep = "\t")
-dmrs <- callDMR(dms, delta = 0.2, p.threshold = 0.01)
-fwrite(dmrs, "03_results/differentially_methylated_regions_delta20_fdr0.01.txt", sep = "\t")
-
-rm(dms, dmls)
-
+if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
+    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
+    dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
+    dml_dmr_summary(dmls, dmrs, flag = 0)
+} else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
+    for (coef in as.character(formula)) {
+        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef, "_dml_fdr", fdr,".txt.gz"))
+        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, "_dmr_fdr", fdr,".txt.gz"))
+        dml_dmr_summary(dmls, dmrs, coef = coef, flag = 0)
+    }
+}
 
 ## Heatmap
 
-dmrs <- GRanges(
-    seqnames = Rle(dmrs$chr),
-    range = IRanges(start = dmrs$start, end = dmrs$end),
-    nCG = dmrs$nCG,
-    diffMethyl = dmrs$diff.Methy,
-    areaStat = dmrs$areaStat
-)
-dmrs <- sort(dmrs)
-
-Beta_values <- bs_obj@assays$data$M / bs_obj@assays$data$Cov
-ME <- bs_obj@rowRanges
+Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
+ME <- bs_obj_all@rowRanges
 mcols(ME) <- as.data.frame(Beta_values)
 # mcols(ME) <- as.data.frame(M_values)
 rm(Beta_values)
 
-hits <- findOverlaps(ME, dmrs, ignore.strand = TRUE)
-dmr <- ME[queryHits(hits)]
-mcols(dmrs) <- cbind(mcols(dmrs), aggregate(x = mcols(dmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
-rm(ME, dmr, hits)
 
 
-png(filename = "03_results/all_DMR_heatmap.png", width = 8, height = 11, units = "in", res = 300)
-Heatmap(
-    matrix = as.matrix(mcols(dmrs)[samples$sample]),
-    cluster_rows = TRUE,
-    #row_split = factor(paste0(seqnames(dmr$dmrs), ":", start(dmr$dmrs), "-", end(dmr$dmrs))),
-    row_title = NULL,
-    #cluster_row_slices = TRUE,
-    cluster_columns = FALSE,
-    column_split = rep(c("SAS", "Wild"), each = 8),
-    use_raster = TRUE,
-    raster_device = "png"
-)
-dev.off()
+
