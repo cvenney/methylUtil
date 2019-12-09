@@ -220,7 +220,11 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
     # "length_Median" = median(end - start),
     # "length_SD" = sd(end - start),
     
+<<<<<<< HEAD
     fwrite(dmr_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
+=======
+    fwrite(dmr_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution", coef, ".txt"), quote = FALSE, sep = "\t")
+>>>>>>> d7c08a0fffe3847b1b5102e4f3f80a61da1e4ea6
     
 }
 
@@ -241,8 +245,14 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
     rm(ldmr, hits)
     
+<<<<<<< HEAD
     png(filename = paste0("06_methylation_results/", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
 
+=======
+    png(filename = paste0("06_methylation_results/", coef, "DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
+    # pdf(file = paste0("06_methylation_results/", coef, "DMR_heatmap.pdf"), width = 8, height = 11)
+    
+>>>>>>> d7c08a0fffe3847b1b5102e4f3f80a61da1e4ea6
     col_cols <- lapply(formula_parts, function(i) {
         levels <- unique(samples[, i])
         coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
@@ -283,9 +293,15 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     
     dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
     dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
+<<<<<<< HEAD
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
     DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = formula_parts)
+=======
+    dml_dmr_summary(dmls, dmrs, flag = 0)
+    rm(dmls)
+    DMR_heatmap(dmrs, ME, samples, coef = formula_parts)
+>>>>>>> d7c08a0fffe3847b1b5102e4f3f80a61da1e4ea6
     
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
@@ -295,7 +311,11 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dmr_fdr", fdr,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef, flag = 1)
         rm(dmls)
+<<<<<<< HEAD
         DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = coef)
+=======
+        DMR_heatmap(dmrs, ME, samples, coef = coef)
+>>>>>>> d7c08a0fffe3847b1b5102e4f3f80a61da1e4ea6
         
     }
 }
