@@ -253,7 +253,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     
     col_anno <- HeatmapAnnotation(design, col = col_cols)
     
-    Heatmap(
+    print(Heatmap(
         matrix = as.matrix(mcols(ldmrs)[sample_info[,"sample"]]),
         cluster_rows = TRUE,
         clustering_distance_rows = "pearson",
@@ -265,7 +265,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
         use_raster = TRUE,
         raster_device = "png",
         top_annotation = col_anno
-    )
+    ))
     
     dev.off()
     
