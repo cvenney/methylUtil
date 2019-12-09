@@ -181,7 +181,7 @@ methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     geom_histogram(fill = "steelblue3", binwidth = 0.1) +
     facet_wrap(~Sample, ncol = 4) +
     ylab("Count")
-ggsave("06_methyaltion_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
+ggsave("06_methylation_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
        width = 8, height = 8, units = "in", dpi = 300)
 rm(df, methyl_ratio_hist)
 
