@@ -143,7 +143,7 @@ fwrite(mds, "06_methylation_results/methylation_MDS.txt", quote = FALSE, sep = "
 all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_hline(yintercept = 0, colour = "grey") +
     geom_vline(xintercept = 0, colour = "grey") +
-    kyles_theme_adjustments +
+    theme_adjustments +
     geom_text_repel(aes(label = Sample), nudge_y = -10)
 ggsave("06_methylation_results/global_methylation_mds_labs.png", plot = all_mds, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
@@ -152,7 +152,7 @@ all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_hline(yintercept = 0, colour = "grey") +
     geom_vline(xintercept = 0, colour = "grey") +
     geom_point(size = 2) +
-    kyles_theme_adjustments
+    theme_adjustments
 ggsave("06_methylation_results/global_methylation_mds_points.png", plot = all_mds_points, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
@@ -176,12 +176,12 @@ Beta_summary <- df %>%
 fwrite(Beta_summary, "06_methylation_results/Beta_summary_by_individual.txt", quote = FALSE, sep = "\t")
 
 methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
-    kyles_theme_adjustments +
+    theme_adjustments +
     theme(axis.text = element_text(size = 8)) +
     geom_histogram(fill = "steelblue3", binwidth = 0.1) +
     facet_wrap(~Sample, ncol = 4) +
     ylab("Count")
-ggsave("03_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
+ggsave("06_methyaltion_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
        width = 8, height = 8, units = "in", dpi = 300)
 rm(df, methyl_ratio_hist)
 
