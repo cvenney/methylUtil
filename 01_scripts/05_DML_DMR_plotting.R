@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 ## Methylation plotting
 
-for (p in c("configr","tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "ComplexHeatmap", "DSS", "bsseq", "vegan", "parallel")) {
+for (p in c("configr", "png", "tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "ComplexHeatmap", "DSS", "bsseq", "vegan", "parallel")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
         if(p %in% c("ComplexHeatmap", "DSS", "bsseq", "GenomicAlignments")) {
@@ -167,8 +167,11 @@ Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, typ
 df <- pivot_longer(as.data.frame(Beta_values), cols = starts_with("LJ"), names_to = "Sample", values_to = "Methylation")
 rm(Beta_values)
 Beta_summary <- df %>% 
-    group_by() %>% 
-    summarise(Mean = mean(, na.rm = TRUE), Median = median(, na.rm = TRUE), SD = sd(, na.rm = TRUE))
+    group_by(Sample) %>% 
+    summarise(Mean = mean(Methylation, na.rm = TRUE), 
+              Median = median(Methylation, na.rm = TRUE), 
+              SD = sd(Methylation, na.rm = TRUE), 
+              NAs = sum(is.na(Methylation)))
 
 fwrite(Beta_summary, "06_methylation_results/Beta_summary_by_individual.txt", quote = FALSE, sep = "\t")
 
@@ -212,8 +215,12 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
                             "nCG_median" = median(nCG),
                             "nCG_SD" = sd(nCG),
                             "N" = .N), by = sign(areaStat)]
+
+    # "length_Mean" = mean(end - start),
+    # "length_Median" = median(end - start),
+    # "length_SD" = sd(end - start),
     
-    fwrite(dml_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution", coef, ".txt"), quote = FALSE, sep = "\t")
+    fwrite(dmr_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution", coef, ".txt"), quote = FALSE, sep = "\t")
     
 }
 
@@ -223,7 +230,7 @@ DMR_heatmap <- function(dmrs, Betas, sample_info, coef = NULL) {
         seqnames = Rle(dmrs$chr),
         range = IRanges(start = dmrs$start, end = dmrs$end),
         nCG = dmrs$nCG,
-        diffMethyl = dmrs$diff.Methy,
+        # diffMethyl = dmrs$diff.Methy,
         areaStat = dmrs$areaStat
     )
     
@@ -235,35 +242,36 @@ DMR_heatmap <- function(dmrs, Betas, sample_info, coef = NULL) {
     rm(ldmr, hits)
     
     png(filename = paste0("06_methylation_results/", coef, "DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
+    # pdf(file = paste0("06_methylation_results/", coef, "DMR_heatmap.pdf"), width = 8, height = 11)
+    
+    col_cols <- lapply(formula_parts, function(i) {
+        levels <- unique(samples[, i])
+        coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
+        names(coef_cols) <- levels
+        coef_cols
+    })
+    names(col_cols) <- formula_parts
+    
+    col_anno <- HeatmapAnnotation(design, col = col_cols)
+    
     Heatmap(
-        matrix = as.matrix(mcols(dmrs)[samples_info[,"sample"]]),
+        matrix = as.matrix(mcols(ldmrs)[sample_info[,"sample"]]),
         cluster_rows = TRUE,
+        clustering_distance_rows = "pearson",
         #row_split = factor(paste0(seqnames(dmr$dmrs), ":", start(dmr$dmrs), "-", end(dmr$dmrs))),
         row_title = NULL,
         #cluster_row_slices = TRUE,
         cluster_columns = FALSE,
-        column_split = as.character(sample_info[,coef]),
+        #column_split = as.character(sample_info[,coef]),
         use_raster = TRUE,
-        raster_device = "png"
+        raster_device = "png",
+        top_annotation = col_anno
     )
     dev.off()
     
 }
 
-## Differential Methylation
-if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
-    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
-    dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
-    dml_dmr_summary(dmls, dmrs, flag = 0)
-} else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
-    for (coef in as.character(formula)) {
-        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef, "_dml_fdr", fdr,".txt.gz"))
-        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, "_dmr_fdr", fdr,".txt.gz"))
-        dml_dmr_summary(dmls, dmrs, coef = coef, flag = 0)
-    }
-}
-
-## Heatmap
+## Differential Methylation summary and heatmaps
 
 Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
 ME <- bs_obj_all@rowRanges
@@ -271,6 +279,24 @@ mcols(ME) <- as.data.frame(Beta_values)
 # mcols(ME) <- as.data.frame(M_values)
 rm(Beta_values)
 
-
-
+if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
+    
+    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
+    dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
+    dml_dmr_summary(dmls, dmrs, flag = 0)
+    rm(dmls)
+    DMR_heatmap(dmrs, ME, samples, coef = formula_parts)
+    
+} else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
+    
+    for (coef in as.character(formula)[-1]) {
+        
+        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dml_fdr", fdr,".txt.gz"))
+        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dmr_fdr", fdr,".txt.gz"))
+        dml_dmr_summary(dmls, dmrs, coef = coef, flag = 1)
+        rm(dmls)
+        DMR_heatmap(dmrs, ME, samples, coef = coef)
+        
+    }
+}
 
