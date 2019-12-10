@@ -145,7 +145,7 @@ all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_vline(xintercept = 0, colour = "grey") +
     theme_adjustments +
     geom_text_repel(aes(label = Sample), nudge_y = -10)
-ggsave(paste0(config$output$outfile_prefix, "global_methylation_mds_labs.png"), plot = all_mds, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "_global_methylation_mds_labs.png"), plot = all_mds, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
 all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
@@ -153,7 +153,7 @@ all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_vline(xintercept = 0, colour = "grey") +
     geom_point(size = 2) +
     theme_adjustments
-ggsave(paste0(config$output$outfile_prefix, "global_methylation_mds_points.png"), plot = all_mds_points, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "_global_methylation_mds_points.png"), plot = all_mds_points, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
 rm(mds, all_mds, all_mds_points, M_values)
@@ -173,15 +173,15 @@ Beta_summary <- df %>%
               SD = sd(Methylation, na.rm = TRUE), 
               NAs = sum(is.na(Methylation)))
 
-fwrite(Beta_summary, paste0(config$output$outfile_prefix, "Beta_summary_by_individual.txt"), quote = FALSE, sep = "\t")
+fwrite(Beta_summary, paste0(config$output$outfile_prefix, "_Beta_summary_by_individual.txt"), quote = FALSE, sep = "\t")
 
 methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     theme_adjustments +
     theme(axis.text = element_text(size = 8)) +
     geom_histogram(fill = "steelblue3", binwidth = 0.1) +
-    facet_wrap(~Sample, ncol = 4) +
+    facet_wrap(~Sample, ncol = floor(sqrt(nrow(samples)))) +
     ylab("Count")
-ggsave(paste0(config$output$outfile_prefix, "methylation_ratio_hist_by_sample.png"), plot = methyl_ratio_hist, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "_methylation_ratio_hist_by_sample.png"), plot = methyl_ratio_hist, device = "png",
        width = 8, height = 8, units = "in", dpi = 300)
 rm(df, methyl_ratio_hist)
 
@@ -241,7 +241,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
     rm(ldmr, hits)
     
-    png(filename = paste0(config$output$outfile_prefix, coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
+    png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
 
     col_cols <- lapply(formula_parts, function(i) {
         levels <- unique(samples[, i])
@@ -289,7 +289,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
 
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
-    for (coef in as.character(formula)[-1]) {
+    for (coef in attr(terms.formula(formula), "term.labels")) {
         
         dmls <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dml_fdr", fdr,".txt.gz"))
         dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dmr_fdr", fdr,".txt.gz"))
