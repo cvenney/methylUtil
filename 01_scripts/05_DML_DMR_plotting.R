@@ -164,7 +164,7 @@ rm(mds, all_mds, all_mds_points, M_values)
 Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
 # Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
 
-df <- pivot_longer(as.data.frame(Beta_values), cols = starts_with("LJ"), names_to = "Sample", values_to = "Methylation")
+df <- pivot_longer(as.data.frame(Beta_values), everything(), names_to = "Sample", values_to = "Methylation")
 rm(Beta_values)
 Beta_summary <- df %>% 
     group_by(Sample) %>% 
