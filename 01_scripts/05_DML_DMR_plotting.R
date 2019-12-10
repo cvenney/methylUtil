@@ -138,7 +138,7 @@ rm(un, me)
 mds <- cmdscale(dist(t(M_values)), k = ncol(M_values) - 1)
 colnames(mds) <- paste0("PC",1:ncol(mds))
 mds <- data.frame(Sample = row.names(mds), Group = interaction(samples[,formula_parts]), mds)
-fwrite(mds, paste0(config$output$outfile_prefix, "methylation_MDS.txt"), quote = FALSE, sep = "\t")
+fwrite(mds, paste0(config$output$outfile_prefix, "_methylation_MDS.txt"), quote = FALSE, sep = "\t")
 
 all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_hline(yintercept = 0, colour = "grey") +
@@ -261,7 +261,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
         row_title = NULL,
         #cluster_row_slices = TRUE,
         cluster_columns = FALSE,
-        column_split = as.character(sample_info[,coef]),
+        #column_split = as.character(sample_info[,coef]),
         use_raster = TRUE,
         raster_device = "png",
         top_annotation = col_anno
