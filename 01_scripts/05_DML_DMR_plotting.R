@@ -138,14 +138,14 @@ rm(un, me)
 mds <- cmdscale(dist(t(M_values)), k = ncol(M_values) - 1)
 colnames(mds) <- paste0("PC",1:ncol(mds))
 mds <- data.frame(Sample = row.names(mds), Group = samples[, "group"], mds)
-fwrite(mds, "06_methylation_results/methylation_MDS.txt", quote = FALSE, sep = "\t")
+fwrite(mds, paste0(config$output$outfile_prefix, "methylation_MDS.txt"), quote = FALSE, sep = "\t")
 
 all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_hline(yintercept = 0, colour = "grey") +
     geom_vline(xintercept = 0, colour = "grey") +
     theme_adjustments +
     geom_text_repel(aes(label = Sample), nudge_y = -10)
-ggsave("06_methylation_results/global_methylation_mds_labs.png", plot = all_mds, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "global_methylation_mds_labs.png"), plot = all_mds, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
 all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
@@ -153,7 +153,7 @@ all_mds_points <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
     geom_vline(xintercept = 0, colour = "grey") +
     geom_point(size = 2) +
     theme_adjustments
-ggsave("06_methylation_results/global_methylation_mds_points.png", plot = all_mds_points, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "global_methylation_mds_points.png"), plot = all_mds_points, device = "png",
        width = 5, height = 4, units = "in", dpi = 300)
 
 rm(mds, all_mds, all_mds_points, M_values)
@@ -173,7 +173,7 @@ Beta_summary <- df %>%
               SD = sd(Methylation, na.rm = TRUE), 
               NAs = sum(is.na(Methylation)))
 
-fwrite(Beta_summary, "06_methylation_results/Beta_summary_by_individual.txt", quote = FALSE, sep = "\t")
+fwrite(Beta_summary, paste0(config$output$outfile_prefix, "Beta_summary_by_individual.txt"), quote = FALSE, sep = "\t")
 
 methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     theme_adjustments +
@@ -181,7 +181,7 @@ methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
     geom_histogram(fill = "steelblue3", binwidth = 0.1) +
     facet_wrap(~Sample, ncol = 4) +
     ylab("Count")
-ggsave("06_methylation_results/methylation_ratio_hist_by_sample.png", plot = methyl_ratio_hist, device = "png",
+ggsave(paste0(config$output$outfile_prefix, "methylation_ratio_hist_by_sample.png"), plot = methyl_ratio_hist, device = "png",
        width = 8, height = 8, units = "in", dpi = 300)
 rm(df, methyl_ratio_hist)
 
@@ -205,7 +205,7 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
                                 "N" = .N), by = sign(stat)]
     }
     
-    fwrite(dml_summary, paste0("06_methylation_results/DML_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
+    fwrite(dml_summary, paste0(config$output$outfile_prefix, "_DML_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
     
     dmr_summary <- dmrs[, .("areaStat_Mean" = mean(areaStat), 
                             "areaStat_Median" = median(areaStat),
@@ -220,7 +220,7 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
     # "length_Median" = median(end - start),
     # "length_SD" = sd(end - start),
     
-    fwrite(dmr_summary, paste0("06_methylation_results/DMR_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
+    fwrite(dmr_summary, paste0(config$output$outfile_prefix, "_DMR_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
 
 }
 
@@ -241,7 +241,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
     rm(ldmr, hits)
     
-    png(filename = paste0("06_methylation_results/", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
+    png(filename = paste0(config$output$outfile_prefix, coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
 
     col_cols <- lapply(formula_parts, function(i) {
         levels <- unique(samples[, i])
