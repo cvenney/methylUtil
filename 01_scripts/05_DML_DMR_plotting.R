@@ -261,7 +261,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
         row_title = NULL,
         #cluster_row_slices = TRUE,
         cluster_columns = FALSE,
-        #column_split = as.character(sample_info[,coef]),
+        column_split = as.character(sample_info[,coef]),
         use_raster = TRUE,
         raster_device = "png",
         top_annotation = col_anno
@@ -290,9 +290,16 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
     for (coef in attr(terms.formula(formula), "term.labels")) {
+        if (grepl(":", coef)) {
+            coef2 <- strsplit(coef, ":")[[1]]
+            coef2 <- lapply(coef2, function(i) {paste0(i, levels(factor(samples[, i]))[2])})
+            coef2 <- paste(unlist(coef2), collapse = ".")
+        } else {
+            coef2 <- paste0(coef, levels(factor(samples[, coef]))[2])
+        }
         
-        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dml_fdr", fdr,".txt.gz"))
-        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef, levels(factor(samples[, coef]))[2], "_dmr_fdr", fdr,".txt.gz"))
+        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
+        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef, flag = 1)
         rm(dmls)
         DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = coef)

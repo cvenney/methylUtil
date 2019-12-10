@@ -181,18 +181,19 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             test <- DMLtest.multiFactor(chr, coef)
             return(test)
         })
+        coef2 <- gsub(":", ".", coef)
         dml_factor_test <- do.call(rbind, dml_factor_test)
         dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
         # Write complete outfile...
-        fwrite(dml_factor_test, file = paste0(config$output$outfile_prefix, "_", coef, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml_factor_test, file = paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
         
         # Call DML and DMR
         dml <- callDML(dml_factor_test, delta = 0, p.threshold = fdr)
         dmr <- callDMR(dml_factor_test, delta = 0, p.threshold = fdr)
         
         # Write DML/DMR outfiles...
-        fwrite(dml, file = paste0(config$output$outfile_prefix, "_", coef, "_dml_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
-        fwrite(dmr, file = paste0(config$output$outfile_prefix, "_", coef, "_dmr_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml, file = paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dmr, file = paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
         
     }
 }
