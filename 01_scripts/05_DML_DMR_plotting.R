@@ -137,7 +137,7 @@ rm(un, me)
 
 mds <- cmdscale(dist(t(M_values)), k = ncol(M_values) - 1)
 colnames(mds) <- paste0("PC",1:ncol(mds))
-mds <- data.frame(Sample = row.names(mds), Group = samples[, "group"], mds)
+mds <- data.frame(Sample = row.names(mds), Group = interaction(samples[,formula_parts]), mds)
 fwrite(mds, paste0(config$output$outfile_prefix, "methylation_MDS.txt"), quote = FALSE, sep = "\t")
 
 all_mds <- ggplot(mds, aes(x = PC1, y = PC2, colour = Group)) +
