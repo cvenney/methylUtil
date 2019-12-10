@@ -300,7 +300,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         
         dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
         dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"))
-        dml_dmr_summary(dmls, dmrs, coef = coef, flag = 1)
+        dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
         DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = coef)
 
