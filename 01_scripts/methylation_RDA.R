@@ -19,7 +19,7 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
 
 args <- commandArgs(T)
 # args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"
-# args <- "~/Projects/sasa_epi/methylUtil/config_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_7x7.yml" ; setwd("~/Projects/safo_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -132,13 +132,21 @@ for (i in 1:ncol(data_rda)) {
     data_rda[is.nan(data_rda[,i]), i] <- mean(data_rda[,i], na.rm = TRUE)
 }
 
+pcoa <- cmdscale(dist(data_rda, method = "euclidian"), k = nrow(data_rda)-1, eig = TRUE)
+eig_var <-pcoa$eig[-c(nrow(data_rda))]/sum(pcoa$eig[-c(nrow(data_rda))])
+pco_keep <- eig_var > bstick(n = length(pcoa$eig)-1)
+if (!pco_keep[1])
+    pco_keep <- cumsum(eig_var) < 0.9
+
+dbrda <- rda(pcoa$points[, pco_keep] ~ ., data = design)
+
 rda <- rda(data_rda ~ ., data = design)
+rm(data_rda, i)
+
 fwrite(RsquareAdj(rda), "06_methylation_results/RDA_Rsquared.txt", sep = "\t")
 
 aov_results <- anova.cca(rda, parallel = 1, permutations = how(nperm=199))
 fwrite(aov_results, "03_results/RDA_ANOVA_results.txt", sep = "\t")
-
-rm(data_rda, i)
 
 sc <- scores(rda, choices = c(1:2), scaling = 3)
 rm(rda)

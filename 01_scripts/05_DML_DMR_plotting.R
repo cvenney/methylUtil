@@ -18,6 +18,7 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
 
 args <- commandArgs(T)
 # args <- "~/Projects/sasa_epi/methylUtil/config_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "config_unpaired.yml" ; setwd("~/Projects/safo_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -256,7 +257,7 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     print(Heatmap(
         matrix = as.matrix(mcols(ldmrs)[sample_info[,"sample"]]),
         cluster_rows = TRUE,
-        clustering_distance_rows = "pearson",
+        clustering_distance_rows = "euclidean",
         #row_split = factor(paste0(seqnames(dmr$dmrs), ":", start(dmr$dmrs), "-", end(dmr$dmrs))),
         row_title = NULL,
         #cluster_row_slices = TRUE,
@@ -271,6 +272,49 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     
 }
 
+pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 0.01) {
+    
+    sig <- c(all_cpg$pvals <= pval_threshold)
+    
+    ldmls <- GRanges(
+        seqnames = Rle(all_cpg$chr),
+        range = IRanges(start = all_cpg$pos, end = all_cpg$pos+1),
+        col = c("black", "red")[sig +1],
+        pch = c(".", "*")[sig +1]
+    )
+    
+    ldmls <- sort(ldmls)
+    
+    ldmrs <- GRanges(
+        seqnames = Rle(dmrs$chr),
+        range = IRanges(start = dmrs$start, end = dmrs$end)
+    )
+    
+    ldmrs <- sort(ldmrs)
+    
+    hits <- findOverlaps(ldmls, ldmrs, ignore.strand = TRUE)
+    
+    mcols(ldmls[queryHits(hits)])$col <- "blue"
+    
+    png(filename = paste0(config$output$outfile_prefix, "_", coef, "_MAplot.png"), width = 8, height = 8, units = "in", res = 300)
+    par(mar = c(5, 4, 0, 0) + 0.1)
+    plot(x = coverage, 
+         y = diff, 
+         xlab = "Mean CpG Coverage",
+         ylab = "Methylation Difference",
+         xlim = c(0, max_cov+5),
+         col = "black", 
+         pch = ".")
+    abline(h = 0, col = "blue")
+    points(x = coverage[sig],
+           y = diff[sig],
+           pch = 16,
+           col = mcols(ldmls[sig])$col, 
+           cex = 0.3)
+    dev.off()
+    
+}
+
 ## Differential Methylation summary and heatmaps
 
 Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
@@ -279,10 +323,23 @@ mcols(ME) <- as.data.frame(Beta_values)
 # mcols(ME) <- as.data.frame(M_values)
 rm(Beta_values)
 
+mean_cov <- rowMeans(getCoverage(bs_obj_all, type = "Cov"), na.rm = TRUE)
+# var_cov <- rowVars(getCoverage(bs_obj_all, type = "Cov"))
+
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     
-    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
+    ## MA plot
+    g1 <- levels(factor(samples[, config$options$reference_condition]))[1]
+    g2 <- levels(factor(samples[, config$options$treatment_condition]))[2]
+    g1 <- samples[samples[, config$options$reference_condition] == g1, "sample"]
+    g2 <- samples[samples[,config$options$treatment_condition] == g2, "sample"]
+    cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
+    all_cpg <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"))
     dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
+    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = fdr)
+    rm(cov_diff, all_cpg)
+    
+    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
     DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = formula_parts)
@@ -298,8 +355,18 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
             coef2 <- paste0(coef, levels(factor(samples[, coef]))[2])
         }
         
-        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
+        ## MA plot
+        g1 <- levels(factor(samples[, coef]))[1]
+        g2 <- levels(factor(samples[, coef]))[2]
+        g1 <- samples[samples[,coef] == g1, "sample"]
+        g2 <- samples[samples[,coef] == g2, "sample"]
+        cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
+        all_cpg <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"))
         dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"))
+        pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = fdr)
+        rm(cov_diff, all_cpg)
+        
+        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
         DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = coef)
