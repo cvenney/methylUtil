@@ -55,5 +55,5 @@ venn_plot <- ggplot(df_venn) +
     theme_void() +
     labs(fill = NULL) +
     annotate("text", x = df_vdc$x, y = df_vdc$y, label = df_vdc$Counts, size = 5)
-ggsave(filename = paste("06_methylation_results/", dmr1_name, "_", dmr2_name, "_overlap.png"),
+ggsave(filename = paste0("06_methylation_results/", dmr1_name, "_", dmr2_name, "_overlap.png"),
        device = "png", plot = venn_plot, width = 3.5, height = 3, units = "in", dpi = 300)
