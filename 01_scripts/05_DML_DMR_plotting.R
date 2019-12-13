@@ -225,14 +225,11 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
 
 }
 
-DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
+DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = NULL) {
     
     ldmrs <- GRanges(
         seqnames = Rle(dmrs$chr),
-        range = IRanges(start = dmrs$start, end = dmrs$end),
-        nCG = dmrs$nCG,
-        # diffMethyl = dmrs$diff.Methy,
-        areaStat = dmrs$areaStat
+        range = IRanges(start = dmrs$start, end = dmrs$end)
     )
     
     ldmrs <- sort(ldmrs)
@@ -244,25 +241,22 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
     
     png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
 
-    col_cols <- lapply(formula_parts, function(i) {
+    col_cols <- lapply(anno_columns, function(i) {
         levels <- unique(samples[, i])
         coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
         names(coef_cols) <- levels
         coef_cols
     })
-    names(col_cols) <- formula_parts
+    names(col_cols) <- anno_columns
     
-    col_anno <- HeatmapAnnotation(design, col = col_cols)
+    col_anno <- HeatmapAnnotation(df = design, col = col_cols)
     
     print(Heatmap(
         matrix = as.matrix(mcols(ldmrs)[sample_info[,"sample"]]),
         cluster_rows = TRUE,
         clustering_distance_rows = "euclidean",
-        #row_split = factor(paste0(seqnames(dmr$dmrs), ":", start(dmr$dmrs), "-", end(dmr$dmrs))),
         row_title = NULL,
-        #cluster_row_slices = TRUE,
         cluster_columns = FALSE,
-        #column_split = as.character(sample_info[,coef]),
         use_raster = TRUE,
         raster_device = "png",
         top_annotation = col_anno
@@ -343,7 +337,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
-    DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = formula_parts)
+    DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
 
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
@@ -370,8 +364,8 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
-        DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, sample_info = samples, coef = coef)
-
+        DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
+        
     }
 }
 

@@ -35,6 +35,7 @@ ncol <- floor(sqrt(length(chrs)))
 if(!all(c("sample", "file") %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\'.")
 
+outfile_name <- paste0("06_methylation_results/coverage/", gsub("\\..*", "", basename(args[2])))
 
 ## Read in data chr by chr
 bs_obj_all <- lapply(chrs, function(chr) {
@@ -77,7 +78,7 @@ median_hist <- ggplot(df_cpg, aes(x = median)) +
                aes(xintercept = value, linetype = quantile)) +
     facet_wrap(~ chr, ncol = ncol, scales = "free_y")
 
-suppressWarnings(ggsave("06_methylation_results/coverage/median_coverage_hist.png", median_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
+suppressWarnings(ggsave(paste0(outfile_name, "_median_coverage_hist.png"), median_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
 rm(median_hist)
 
 mean_hist <- ggplot(df_cpg, aes(x = mean)) +
@@ -92,7 +93,7 @@ mean_hist <- ggplot(df_cpg, aes(x = mean)) +
                aes(xintercept = value, linetype = quantile)) +
     facet_wrap(~ chr, ncol = ncol, scales = "free_y")
 
-suppressWarnings(ggsave("06_methylation_results/coverage/mean_coverage_hist.png", mean_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
+suppressWarnings(ggsave(paste0(outfile_name, "_mean_coverage_hist.png"), mean_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
 rm(mean_hist, df_cpg)
 
 
@@ -108,7 +109,7 @@ ind_coverage <- data.frame(
     SD_Coverage = colSds(getCoverage(bs_obj_all, type = "Cov")),
     Max_Coverage = colMaxs(getCoverage(bs_obj_all, type = "Cov"))
 )
-write.table(ind_coverage, "06_methylation_results/coverage/Individual_coverage_stats.txt", col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+write.table(ind_coverage, paste0(outfile_name, "_Individual_coverage_stats.txt"), col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
 
 
 ## Principle coordinates analysis to identify outlier individuals based on coverage
@@ -121,7 +122,7 @@ mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
     geom_hline(yintercept = 0, color = "grey") +
     geom_vline(xintercept = 0, color = "grey") +
     geom_label_repel(fill = "black", color = "white")
-ggsave("06_methylation_results/coverage/mds_plot_coverage.png", mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
+ggsave(paste0(outfile_name, "_mds_plot_coverage.png"), mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
 
 euc_miss <- dist(t(getCoverage(bs_obj_all, type = "Cov")>0))
 mds <- as.data.frame(cmdscale(euc_miss))
@@ -132,4 +133,4 @@ mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
     geom_hline(yintercept = 0, color = "grey") +
     geom_vline(xintercept = 0, color = "grey") +
     geom_label_repel(fill = "black", color = "white")
-ggsave("06_methylation_results/coverage/mds_plot_missing_data.png", mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
+ggsave(paste0(outfile_name, "_mds_plot_missing_data.png"), mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
