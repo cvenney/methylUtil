@@ -4,6 +4,7 @@
 if [ $# -ne 1 ]
 then
     echo "Usage: $0 <sample_info_prefix>"
+    exit
 fi
 
 file=$1
@@ -14,11 +15,11 @@ then
     exit
 fi
 
-echo "sample\tfile" > $file
+echo "sample file" > $file
 
 
 for i in $(ls 03_raw_bedGraphs/*.bedGraph.gz)
 do
-    sampleid=$(echo $file | perl -pe 's/*Index_[0-9]+\.//' | perl -pe 's/\.*//')
-    echo "${sampleid}\t${i}" >> $file
+    sampleid=$(basename $i | perl -pe 's/\..*//')
+    echo "${sampleid} 04_filtered_bedGraphs/$(basename ${i})" >> $file
 done
