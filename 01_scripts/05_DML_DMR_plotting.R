@@ -329,10 +329,10 @@ mean_cov <- rowMeans(getCoverage(bs_obj_all, type = "Cov"), na.rm = TRUE)
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     
     ## MA plot
-    g1 <- levels(factor(samples[, config$options$reference_condition]))[1]
-    g2 <- levels(factor(samples[, config$options$treatment_condition]))[2]
-    g1 <- samples[samples[, config$options$reference_condition] == g1, "sample"]
-    g2 <- samples[samples[,config$options$treatment_condition] == g2, "sample"]
+    g1 <- levels(factor(samples[, formula_parts]))[1]
+    g2 <- levels(factor(samples[, formula_parts]))[2]
+    g1 <- samples[samples[, formula_parts] == g1, "sample"]
+    g2 <- samples[samples[, formula_parts] == g2, "sample"]
     cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
     all_cpg <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"))
     dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
