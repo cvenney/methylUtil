@@ -50,10 +50,11 @@ df_venn <- data.frame(x = c(-0.5, 0.5),
                       labels = c(dmr1_name, dmr2_name))
 
 venn_plot <- ggplot(df_venn) +
-    geom_circle(aes(x0 = x, y0 = y, r = 1, fill = labels), alpha = .3, size = 1, colour = 'grey') +
+    geom_circle(aes(x0 = x, y0 = y, r = 1, fill = labels), alpha = 0.5, size = 1, colour = 'grey40') +
     coord_fixed() +
     theme_void() +
     labs(fill = NULL) +
-    annotate("text", x = df_vdc$x, y = df_vdc$y, label = df_vdc$Counts, size = 5)
+    annotate("text", x = df_vdc$x, y = df_vdc$y, label = df_vdc$Counts, size = 10) +
+    scale_fill_brewer(palette = "Dark2")
 ggsave(filename = paste0("06_methylation_results/", dmr1_name, "_", dmr2_name, "_overlap.png"),
        device = "png", plot = venn_plot, width = 3.5, height = 3, units = "in", dpi = 300)

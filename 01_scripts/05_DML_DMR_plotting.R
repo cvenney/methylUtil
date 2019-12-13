@@ -274,7 +274,8 @@ DMR_heatmap <- function(dmrs, Betas, design, sample_info, coef = NULL) {
 
 pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 0.01) {
     
-    sig <- c(all_cpg$pvals <= pval_threshold)
+    pval_col <- grep(pattern = "pval", names(all_cpg))
+    sig <- c(all_cpg[, ..pval_col] <= pval_threshold)
     
     ldmls <- GRanges(
         seqnames = Rle(all_cpg$chr),
@@ -336,7 +337,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
     all_cpg <- fread(paste0(config$output$outfile_prefix, "_all_sites.txt.gz"))
     dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
-    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = fdr)
+    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = formula_parts, pval_threshold = fdr)
     rm(cov_diff, all_cpg)
     
     dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
