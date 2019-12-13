@@ -42,7 +42,7 @@ hits <- suppressWarnings(findOverlaps(dmr1, dmr2, ignore.strand = TRUE))
 dmr1_hits <- length(unique(queryHits(hits)))
 dmr2_hits <- length(unique(subjectHits(hits)))
 
-df_vdc <- data.frame(Counts = c(length(dmr1) - dmr1_hits, length(dmr2) - dmr2_hits, ifelse(dmr1_hits == dmr2_hits, dmr1_hits, paste(dmr1_hits, dmr2_hits, sep = "\n")))) %>%
+df_vdc <- data.frame(Counts = c(length(dmr1) - dmr1_hits, length(dmr2) - dmr2_hits, ifelse(dmr1_hits == dmr2_hits, dmr1_hits, paste(dmr1_hits, dmr2_hits, sep = "/")))) %>%
     mutate(x = c(-1, 1, 0), y = c(0, 0, 0))
 
 df_venn <- data.frame(x = c(-0.5, 0.5),
@@ -54,7 +54,7 @@ venn_plot <- ggplot(df_venn) +
     coord_fixed() +
     theme_void() +
     labs(fill = NULL) +
-    annotate("text", x = df_vdc$x, y = df_vdc$y, label = df_vdc$Counts, size = 10) +
+    annotate("text", x = df_vdc$x, y = df_vdc$y, label = df_vdc$Counts, size = 6) +
     scale_fill_brewer(palette = "Dark2")
 ggsave(filename = paste0("06_methylation_results/", dmr1_name, "_", dmr2_name, "_overlap.png"),
        device = "png", plot = venn_plot, width = 3.5, height = 3, units = "in", dpi = 300)

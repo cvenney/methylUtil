@@ -39,8 +39,8 @@ options:
     # Minimum change in methylation (only relevant for analysis_type = "wald")
     delta: 0.2
     
-    # FDR
-    fdr: 0.01
+    # Pval threshold
+    pval_threshold: 1e-5
 
 
 output:

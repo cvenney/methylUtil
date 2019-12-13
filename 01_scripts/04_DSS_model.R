@@ -102,11 +102,11 @@ if (is.null(config$options$max_coverage)) {
     min_ind <- config$options$min_individuals
 }
 
-if (is.null(config$options$fdr) | !is.numeric(config$options$fdr)) {
-    warning("Invalid FDR. Default to using a value of 0.05.")
-    fdr <- 0.05
+if (is.null(config$options$pval_threshold) | !is.numeric(config$options$pval_threshold)) {
+    warning("Invalid pval threshold. Default to using a value of 1e-5.")
+    pval <- 1e-5
 } else {
-    fdr <- config$options$fdr
+    pval <- config$options$pval_threshold
 }
 
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(config$options$delta) | !is.numeric(config$options$delta))) {
@@ -165,12 +165,12 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     fwrite(dml_test, file = paste0(config$output$outfile_prefix, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
     
     # Call DML and DMR
-    dml <- callDML(dml_test, delta = delta, p.threshold = fdr)
-    dmr <- callDMR(dml_test, delta = delta, p.threshold = fdr)
+    dml <- callDML(dml_test, delta = delta, p.threshold = pval)
+    dmr <- callDMR(dml_test, delta = delta, p.threshold = pval)
     
     # Write DML/DMR outfiles...
-    fwrite(dml, file = paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
-    fwrite(dmr, file = paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dml, file = paste0(config$output$outfile_prefix, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dmr, file = paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
 
 # glm
@@ -188,12 +188,12 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
         fwrite(dml_factor_test, file = paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
         
         # Call DML and DMR
-        dml <- callDML(dml_factor_test, delta = 0, p.threshold = fdr)
-        dmr <- callDMR(dml_factor_test, delta = 0, p.threshold = fdr)
+        dml <- callDML(dml_factor_test, delta = 0, p.threshold = pval)
+        dmr <- callDMR(dml_factor_test, delta = 0, p.threshold = pval)
         
         # Write DML/DMR outfiles...
-        fwrite(dml, file = paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
-        fwrite(dmr, file = paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml, file = paste0(config$output$outfile_prefix, "_", coef2, "_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dmr, file = paste0(config$output$outfile_prefix, "_", coef2, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
         
     }
 }

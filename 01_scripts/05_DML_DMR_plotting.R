@@ -85,11 +85,11 @@ if (is.null(config$options$max_coverage)) {
     min_ind <- config$options$min_individuals
 }
 
-if (is.null(config$options$fdr) | !is.numeric(config$options$fdr)) {
-    warning("Invalid FDR. Default to using a value of 0.05.")
-    fdr <- 0.05
+if (is.null(config$options$pval_threshold) | !is.numeric(config$options$pval_threshold)) {
+    warning("Invalid pval threshold. Default to using a value of 1e-5.")
+    pval <- 1e-5
 } else {
-    fdr <- config$options$fdr
+    pval <- config$options$pval_threshold
 }
 
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(config$options$delta) | !is.numeric(config$options$delta))) {
@@ -266,7 +266,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     
 }
 
-pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 0.01) {
+pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 1e-5) {
     
     pval_col <- grep(pattern = "pval", names(all_cpg))
     sig <- c(all_cpg[, ..pval_col] <= pval_threshold)
@@ -330,11 +330,11 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     g2 <- samples[samples[, formula_parts] == g2, "sample"]
     cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
     all_cpg <- fread(paste0(config$output$outfile_prefix, "_all_sites.txt.gz"))
-    dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
-    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = formula_parts, pval_threshold = fdr)
+    dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_pval", pval,".txt.gz"))
+    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = formula_parts, pval_threshold = pval)
     rm(cov_diff, all_cpg)
     
-    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_fdr", fdr,".txt.gz"))
+    dmls <- fread(paste0(config$output$outfile_prefix, "_dml_delta", delta, "_pval", pval,".txt.gz"))
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
     DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
@@ -357,11 +357,11 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         g2 <- samples[samples[,coef] == g2, "sample"]
         cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
         all_cpg <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"))
-        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dmr_fdr", fdr,".txt.gz"))
-        pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = fdr)
+        dmrs <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dmr_pval", pval,".txt.gz"))
+        pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = pval)
         rm(cov_diff, all_cpg)
         
-        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_fdr", fdr,".txt.gz"))
+        dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_pval", pval,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
         DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)

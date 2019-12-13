@@ -14,9 +14,9 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "tidyverse"
     rm(p)
 }
 
-kyles_theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12, colour = "black"), 
-                                                    axis.title = element_text(size = 14, colour = "black"),
-                                                    panel.grid = element_blank())
+theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12, colour = "black"), 
+                                              axis.title = element_text(size = 14, colour = "black"),
+                                              panel.grid = element_blank())
 
 args <- commandArgs(T)
 # args <- c(1, "~/Projects/safo_epi/02_data/sample_info.txt", "~/Projects/safo_epi/02_data/chrs.txt")
@@ -118,7 +118,7 @@ mds <- as.data.frame(cmdscale(euc_dist))
 names(mds) <- c("PC1", "PC2")
 mds$Ind <- row.names(mds)
 mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
-    kyles_theme_adjustments +
+    theme_adjustments +
     geom_hline(yintercept = 0, color = "grey") +
     geom_vline(xintercept = 0, color = "grey") +
     geom_label_repel(fill = "black", color = "white")
@@ -129,7 +129,7 @@ mds <- as.data.frame(cmdscale(euc_miss))
 names(mds) <- c("PC1", "PC2")
 mds$Ind <- row.names(mds)
 mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
-    kyles_theme_adjustments +
+    theme_adjustments +
     geom_hline(yintercept = 0, color = "grey") +
     geom_vline(xintercept = 0, color = "grey") +
     geom_label_repel(fill = "black", color = "white")
