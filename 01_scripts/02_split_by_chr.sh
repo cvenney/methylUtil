@@ -10,7 +10,7 @@ fi
 
 prefix=$1
 
-for file in $(ls 04_filtered_bedGraph/*.bedGraph.gz)
+for file in $(ls 04_filtered_bedGraphs/*.bedGraph.gz)
 do
     01_scripts/util/split_bedGraph_by_chr.py $file $prefix
 done
