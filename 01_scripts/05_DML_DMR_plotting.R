@@ -334,7 +334,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     g1 <- samples[samples[, formula_parts] == g1, "sample"]
     g2 <- samples[samples[, formula_parts] == g2, "sample"]
     cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
-    all_cpg <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"))
+    all_cpg <- fread(paste0(config$output$outfile_prefix, "_all_sites.txt.gz"))
     dmrs <- fread(paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_fdr", fdr,".txt.gz"))
     pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = fdr)
     rm(cov_diff, all_cpg)
