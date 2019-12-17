@@ -17,7 +17,7 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
                                               panel.grid = element_blank())
 
 args <- commandArgs(T)
-# args <- "~/Projects/sasa_epi/methylUtil/config_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_juveniles_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
 # args <- "config_unpaired.yml" ; setwd("~/Projects/safo_epi/methylUtil")
 
 ## Sanity checking
@@ -89,7 +89,7 @@ if (is.null(config$options$pval_threshold) | !is.numeric(config$options$pval_thr
     warning("Invalid pval threshold. Default to using a value of 1e-5.")
     pval <- 1e-5
 } else {
-    pval <- config$options$pval_threshold
+    pval <- as.numeric(config$options$pval_threshold)
 }
 
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(config$options$delta) | !is.numeric(config$options$delta))) {
@@ -118,7 +118,7 @@ bs_obj_all <- lapply(chrs, function(chr) {
     
     # Filter CpGs on min and max coverage in min individuals
     pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
-    bs_obj <- bs_obj[rowSums(pass) >= min_ind,]
+    bs_obj <- bs_obj[rowSums(pass, na.rm = TRUE) >= min_ind,]
     rm(pass)
     
     return(bs_obj)
