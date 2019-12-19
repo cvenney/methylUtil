@@ -242,7 +242,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
 
     col_cols <- lapply(anno_columns, function(i) {
-        levels <- unique(samples[, i])
+        levels <- unique(sample_info[, i])
         coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
         names(coef_cols) <- levels
         coef_cols
@@ -252,7 +252,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     col_anno <- HeatmapAnnotation(df = design, col = col_cols)
     
     print(Heatmap(
-        matrix = as.matrix(mcols(ldmrs)[sample_info[,"sample"]]),
+        matrix = as.matrix(mcols(ldmrs)[sample_info[order(sample_info[,coef]),"sample"]]),
         cluster_rows = TRUE,
         clustering_distance_rows = "euclidean",
         row_title = NULL,
@@ -364,7 +364,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         dmls <- fread(paste0(config$output$outfile_prefix, "_", coef2, "_dml_pval", pval,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
-        DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
+        DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = coef)
         
     }
 }
