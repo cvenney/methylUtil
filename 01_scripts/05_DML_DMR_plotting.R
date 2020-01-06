@@ -99,30 +99,13 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(c
     delta <- config$options$delta
 }
 
-bs_obj_all <- lapply(chrs, function(chr) {
-    
-    # Create local sample info and adujust filenames for specific chr
-    lsamples <- samples
-    lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
-    
-    message(paste0("Loading chr: ", chr))
-    
-    # Load data and convert to BSseq object
-    data_list <- lapply(1:nrow(samples), function(i) {
-        file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
-        file[, V7 := V5 + V6]
-        return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
-    })
-    bs_obj <- makeBSseqData(data_list, samples[,"sample"])
-    rm(data_list)
-    
-    # Filter CpGs on min and max coverage in min individuals
-    pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
-    bs_obj <- bs_obj[rowSums(pass, na.rm = TRUE) >= min_ind,]
-    rm(pass)
-    
-    return(bs_obj)
-})
+bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max_cov)
+
+if (file.exists(bs_obj_path)) {
+    bs_obj_all <- readRDS(file = bs_obj_path)
+} else {
+    stop("BSseq object not found! You need to run 04_DSS_model.R first.")
+}
 
 bs_obj_all <- suppressWarnings(do.call(rbind, bs_obj_all))
 
@@ -252,7 +235,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     col_anno <- HeatmapAnnotation(df = design, col = col_cols)
     
     print(Heatmap(
-        matrix = as.matrix(mcols(ldmrs)[sample_info[order(sample_info[,coef]),"sample"]]),
+        matrix = as.matrix(mcols(ldmrs)[sample_info[ ,"sample"]]),
         cluster_rows = TRUE,
         clustering_distance_rows = "euclidean",
         row_title = NULL,

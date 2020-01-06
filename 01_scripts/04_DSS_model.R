@@ -15,8 +15,8 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 
 args <- commandArgs(T)
-# args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"
-# args <- "~/Projects/sasa_epi/methylUtil/config_8x8_glm.yml"
+# args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_8x8_glm.yml"; setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -73,11 +73,12 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
 if (is.null(config$options$n_cores)) {
     warning("\'n_cores\' not specified. Default to using 1 core.")
     n_cores <- 1
+    setDTthreads(n_cores)
 } else {
     if (config$options$n_cores == 0)
         warning("Using all cores will require a lot of memory")
     n_cores <- ifelse(config$options$n_cores == 0, detectCores(), config$options$n_cores)
-    setDTthreads(1)
+    setDTthreads(n_cores)
 }
 
 # Set coverage options for filtering
@@ -116,84 +117,108 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(c
     delta <- config$options$delta
 }
 
-# Fit models
-dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
-    
-    # Create local sample info and adujust filenames for specific chr
-    lsamples <- samples
-    lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
-    
-    # Load data and convert to BSseq object
-    data_list <- lapply(1:nrow(samples), function(i) {
-        file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
-        file[, V7 := V5 + V6]
-        return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
+
+## Load and save BSseq object
+bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max_cov)
+if (file.exists(bs_obj_path)) {
+    bs_obj_all <- readRDS(file = bs_obj_path)
+} else {
+    bs_obj_all <- lapply(chrs, function(chr) {
+        
+        # Create local sample info and adujust filenames for specific chr
+        lsamples <- samples
+        lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
+        
+        message(paste0("Loading chr: ", chr))
+        
+        # Load data and convert to BSseq object
+        data_list <- lapply(1:nrow(samples), function(i) {
+            file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
+            file[, V7 := V5 + V6]
+            return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
+        })
+        bs_obj <- makeBSseqData(data_list, samples[,"sample"])
+        rm(data_list)
+        
+        # Filter CpGs on min and max coverage in min individuals
+        pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
+        bs_obj <- bs_obj[rowSums(pass, na.rm = TRUE) >= min_ind,]
+        rm(pass)
+        
+        return(bs_obj)
     })
-    bs_obj <- makeBSseqData(data_list, samples[,"sample"])
-    rm(data_list)
-    
-    # Filter CpGs on min and max coverage in min individuals
-    pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
-    bs_obj <- bs_obj[rowSums(pass) >= min_ind,]
-    rm(pass)
-    
-    # Run linear models
-    if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
-        # Standard beta-binomial two group test
-        message(paste0("Processing chromosome: ", chr))
-        capture.output(dml_test <- DMLtest(bs_obj, group1 = grp1, group2 = grp2, smoothing = TRUE))
-    }
-    
-    if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
-        # Linear model with family nested in treatment
-        message(paste0("Processing chromosome: ", chr))
-        capture.output(dml_test <- DMLfit.multiFactor(bs_obj, design = design, formula = formula, smoothing = TRUE))
-    }
-    
-    return(dml_test)
-})
+    names(bs_obj_all) <- chrs
+    message("Saving BSseq obj for future use...")
+    saveRDS(object = bs_obj_all, file = bs_obj_path)
+}
 
-
-## Compile chromosomes, correct global FDR, call DML/DMR, and write results.
 
 # Wald tests
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
-    dml_test <- do.call(rbind, dml_list)
-    dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
     
-    # Write complete outfile...
-    fwrite(dml_test, file = paste0(config$output$outfile_prefix, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
+        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+    } else {
+        dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+            # Run linear models
+            # Standard beta-binomial two group test
+            message(paste0("Processing chromosome: ", chr))
+            capture.output(dml_test <- DMLtest(bs_obj_all[[chr]], group1 = grp1, group2 = grp2, smoothing = TRUE))
+            return(dml_test)
+        })
+        dml_test <- do.call(rbind, dml_list)
+        dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
+        # Write complete outfile...
+        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+    }
     
     # Call DML and DMR
     dml <- callDML(dml_test, delta = delta, p.threshold = pval)
     dmr <- callDMR(dml_test, delta = delta, p.threshold = pval)
     
     # Write DML/DMR outfiles...
-    fwrite(dml, file = paste0(config$output$outfile_prefix, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
-    fwrite(dmr, file = paste0(config$output$outfile_prefix, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dml, file = paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dmr, file = paste0(bs_obj_path, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
 
 # glm
 if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     model_mat <- model.matrix(formula, design)
     for (coef in colnames(model_mat)[-1]) {
-        dml_factor_test <- mclapply(dml_list, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
-            test <- DMLtest.multiFactor(chr, coef)
-            return(test)
-        })
+        # swap colon for period to use in file paths
         coef2 <- gsub(":", ".", coef)
-        dml_factor_test <- do.call(rbind, dml_factor_test)
-        dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
-        # Write complete outfile...
-        fwrite(dml_factor_test, file = paste0(config$output$outfile_prefix, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        if (file.exists(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))) {
+            message(paste0("Previous model results detected, loading results for: ", coef2))
+            dml_factor_test <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
+            dml_factor_test <- as.data.frame(dml_factor_test)
+            class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
+        } else {
+            if(exists("dml_list")) {
+                dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+                    # Run linear models
+                    # Linear model with family nested in treatment
+                    message(paste0("Processing chromosome: ", chr))
+                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj_all[[chr]], design = design, formula = formula, smoothing = TRUE))
+                    return(dml_test)
+                })
+            }
+            dml_factor_test <- mclapply(dml_list, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+                test <- DMLtest.multiFactor(chr, coef)
+                return(test)
+            })
+            dml_factor_test <- do.call(rbind, dml_factor_test)
+            dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
+            # Write complete outfile...
+            fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        }
         
         # Call DML and DMR
         dml <- callDML(dml_factor_test, delta = 0, p.threshold = pval)
         dmr <- callDMR(dml_factor_test, delta = 0, p.threshold = pval)
         
         # Write DML/DMR outfiles...
-        fwrite(dml, file = paste0(config$output$outfile_prefix, "_", coef2, "_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
-        fwrite(dmr, file = paste0(config$output$outfile_prefix, "_", coef2, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml, file = paste0(bs_obj_path, "_", coef2, "_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dmr, file = paste0(bs_obj_path, "_", coef2, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
         
     }
 }
