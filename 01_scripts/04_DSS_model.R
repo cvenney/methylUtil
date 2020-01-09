@@ -193,7 +193,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             dml_factor_test <- as.data.frame(dml_factor_test)
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
         } else {
-            if(exists("dml_list")) {
+            if(!exists("dml_list")) {
                 dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
                     # Run linear models
                     # Linear model with family nested in treatment
