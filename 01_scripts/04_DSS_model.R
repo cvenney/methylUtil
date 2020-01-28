@@ -16,7 +16,7 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 args <- commandArgs(T)
 # args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
-# args <- "~/Projects/sasa_epi/methylUtil/config_8x8_glm.yml"; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_juveniles_7x7.yml"; setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -121,35 +121,34 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(c
 ## Load and save BSseq object
 bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max_cov)
 if (file.exists(bs_obj_path)) {
-    bs_obj_all <- readRDS(file = bs_obj_path)
-} else {
-    bs_obj_all <- lapply(chrs, function(chr) {
-        
-        # Create local sample info and adujust filenames for specific chr
-        lsamples <- samples
-        lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
-        
-        message(paste0("Loading chr: ", chr))
-        
-        # Load data and convert to BSseq object
-        data_list <- lapply(1:nrow(samples), function(i) {
-            file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
-            file[, V7 := V5 + V6]
-            return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
-        })
-        bs_obj <- makeBSseqData(data_list, samples[,"sample"])
-        rm(data_list)
-        
-        # Filter CpGs on min and max coverage in min individuals
-        pass <- getCoverage(bs_obj, type = "Cov") <= max_cov & getCoverage(bs_obj, type = "Cov") >= min_cov
-        bs_obj <- bs_obj[rowSums(pass, na.rm = TRUE) >= min_ind,]
-        rm(pass)
-        
-        return(bs_obj)
-    })
-    names(bs_obj_all) <- chrs
+    message("Loading existing BSseq object")
+    bs_obj <- readRDS(file = bs_obj_path)
+} else if (file.exists(paste0("06_methylation_results/", gsub("\\..*", "", config$input$sample_info), "_all_data.rds"))) {
+    message("Loading existing BSseq object")
+    bs_obj_all <- readRDS(file = paste0("06_methylation_results/", gsub("\\..*", "", config$input$sample_info), "_all_data.rds"))
+    keep <- (rowSums(getCoverage(bs_obj, type = "Cov") >= min_cov & getCoverage(bs_obj, type = "Cov") <= max_cov)) >= min_ind
+    bs_obj <- bs_obj_all[keep, ]
+    rm(bs_ob_all, keep)
     message("Saving BSseq obj for future use...")
-    saveRDS(object = bs_obj_all, file = bs_obj_path)
+    saveRDS(object = bs_obj, file = bs_obj_path, compress = "gzip")
+} else {    
+    bs_obj_all <- lapply(1:nrow(samples), function(i) {
+        message(paste0("Loading sample: ", samples[i, "sample"]))
+        samp <- fread(samples[i, "file"], header = FALSE)[,c(-3:-4)]
+        samp[, V7 := V5 + V6] # Combine me+ and me- counts for total coverage
+        #bs_obj <- makeBSseqData(list(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)]), samples[i,"sample"])
+        return(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
+    })
+    bs_obj_all <- makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample)
+    bs_obj_all <- bs_obj_all[(rowSums(getCoverage(bs_obj_all, type = "Cov") >= 1) == ncol(bs_obj_all)), ]
+    saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(args[2])), "_all_data.rds"), compress = "gzip")
+    
+    # Filter CpGs on min and max coverage in min individuals
+    keep <- (rowSums(getCoverage(bs_obj, type = "Cov") >= min_cov & getCoverage(bs_obj, type = "Cov") <= max_cov)) >= min_ind
+    bs_obj <- bs_obj_all[keep, ]
+    rm(bs_ob_all, keep)
+    message("Saving BSseq obj for future use...")
+    saveRDS(object = bs_obj, file = bs_obj_path, compress = "gzip")
 }
 
 
@@ -159,11 +158,11 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
     } else {
-        dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
             message(paste0("Processing chromosome: ", chr))
-            capture.output(dml_test <- DMLtest(bs_obj_all[[chr]], group1 = grp1, group2 = grp2, smoothing = TRUE))
+            capture.output(dml_test <- DMLtest(bs_obj[seqnames(bs_obj) == chr, ], group1 = grp1, group2 = grp2, smoothing = TRUE))
             return(dml_test)
         })
         dml_test <- do.call(rbind, dml_list)
@@ -193,16 +192,16 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             dml_factor_test <- as.data.frame(dml_factor_test)
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
         } else {
-            if(exists("dml_list")) {
-                dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+            if(!exists("dml_list")) {
+                dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
                     # Run linear models
                     # Linear model with family nested in treatment
-                    message(paste0("Processing chromosome: ", chr))
-                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj_all[[chr]], design = design, formula = formula, smoothing = TRUE))
+                    message(paste0("Fitting model for chromosome: ", chr))
+                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj[seqnames(bs_obj) == chr,], design = design, formula = formula, smoothing = TRUE))
                     return(dml_test)
                 })
             }
-            dml_factor_test <- mclapply(dml_list, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
+            dml_factor_test <- lapply(dml_list, function(chr) {
                 test <- DMLtest.multiFactor(chr, coef)
                 return(test)
             })

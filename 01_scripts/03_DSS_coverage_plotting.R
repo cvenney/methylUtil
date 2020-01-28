@@ -19,7 +19,8 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
                                               panel.grid = element_blank())
 
 args <- commandArgs(T)
-# args <- c(1, "~/Projects/safo_epi/02_data/sample_info.txt", "~/Projects/safo_epi/02_data/chrs.txt")
+# args <- c(8, "~/Projects/safo_epi/methylUtil/sample_info_unpaired_control.txt"); setwd("~/Projects/safo_epi/methylUtil")
+args <- c(8, "~/Projects/sasa_epi/methylUtil/juvenile_samples_8x8.txt"); setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 3)
@@ -28,7 +29,6 @@ if (length(args) != 3)
 n_cores <- as.integer(args[1])
 setDTthreads(threads = n_cores)
 samples <- read.table(args[2], header = T, stringsAsFactors = FALSE)
-chrs <- read.table(args[3], header = FALSE, stringsAsFactors = FALSE)[,1]
 
 ncol <- floor(sqrt(length(chrs)))
 
@@ -37,64 +37,19 @@ if(!all(c("sample", "file") %in% colnames(samples)))
 
 outfile_name <- paste0("06_methylation_results/coverage/", gsub("\\..*", "", basename(args[2])))
 
-## Read in data chr by chr
-bs_obj_all <- lapply(chrs, function(chr) {
-    
-    # Create local sample info and adujust filenames for specific chr
-    lsamples <- samples
-    lsamples$file <- sub("\\.bedGraph\\.gz", paste0("_", chr, "\\.bedGraph\\.gz"), lsamples$file)
-    
-    message(paste0("Loading chr: ", chr))
-    
-    # Load data and convert to BSseq object
-    data_list <- lapply(1:nrow(samples), function(i) {
-        file <- fread(lsamples[i, "file"], header = FALSE)[,c(-3:-4)]
-        file[, V7 := V5 + V6]
-        return(file[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
-    })
-    bs_obj <- makeBSseqData(data_list, samples[,"sample"])
-    rm(data_list)
-    return(bs_obj)
+## Read in data
+bs_obj_all <- lapply(1:nrow(samples), function(i) {
+    message(paste0("Loading sample: ", samples[i, "sample"]))
+    samp <- fread(samples[i, "file"], header = FALSE)[,c(-3:-4)]
+    samp[, V7 := V5 + V6] # Combine me+ and me- counts for total coverage
+    #bs_obj <- makeBSseqData(list(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)]), samples[i,"sample"])
+    return(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
 })
 
-bs_obj_all <- suppressWarnings(do.call(rbind, bs_obj_all))
+bs_obj_all <- makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample)
+bs_obj_all <- bs_obj_all[(rowSums(getCoverage(bs_obj_all, type = "Cov") >= 1) == ncol(bs_obj_all)), ]
 
-chr <- as.character(seqnames(bs_obj_all))
-
-df_cpg <- data.frame(chr = as.factor(if_else(chr %in% chrs, chr, "contigs")),
-                     median = rowMedians(getCoverage(bs_obj_all, type = "Cov")),
-                     mean = rowMeans(getCoverage(bs_obj_all, type = "Cov")))
-rm(chr)
-
-median_hist <- ggplot(df_cpg, aes(x = median)) +
-    theme_linedraw() + 
-    theme(panel.grid = element_blank(), 
-          axis.text.y = element_blank(),
-          legend.position = c(0.9, 0.1)) +
-    geom_histogram(binwidth = 2) +
-    xlim(c(-0.1,40)) +
-    geom_vline(data = data.frame(quantile = factor(c("5X", "10X", "0.99", "0.995"), levels = c("5X", "10X", "0.99", "0.995")), 
-                                 value = c(5, 10, quantile(df_cpg$mean, c(0.99, 0.995)))),
-               aes(xintercept = value, linetype = quantile)) +
-    facet_wrap(~ chr, ncol = ncol, scales = "free_y")
-
-suppressWarnings(ggsave(paste0(outfile_name, "_median_coverage_hist.png"), median_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
-rm(median_hist)
-
-mean_hist <- ggplot(df_cpg, aes(x = mean)) +
-    theme_linedraw() + 
-    theme(panel.grid = element_blank(), 
-          axis.text.y = element_blank(),
-          legend.position = c(0.9, 0.1)) +
-    geom_histogram(binwidth = 2) +
-    xlim(c(-0.1,40)) +
-    geom_vline(data = data.frame(quantile = factor(c("5X", "10X", "0.99", "0.995"), levels = c("5X", "10X", "0.99", "0.995")), 
-                                 value = c(5, 10, quantile(df_cpg$mean, c(0.99, 0.995)))),
-               aes(xintercept = value, linetype = quantile)) +
-    facet_wrap(~ chr, ncol = ncol, scales = "free_y")
-
-suppressWarnings(ggsave(paste0(outfile_name, "_mean_coverage_hist.png"), mean_hist, device = "png", width = 8.5, height = 11, units = "in", dpi = 300))
-rm(mean_hist, df_cpg)
+saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(args[2])), "_all_data.rds"), compress = "gzip")
 
 
 ## Generate summary table of coverage statistics by individual
