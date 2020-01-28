@@ -20,7 +20,7 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
 
 args <- commandArgs(T)
 # args <- c(8, "~/Projects/safo_epi/methylUtil/sample_info_unpaired_control.txt"); setwd("~/Projects/safo_epi/methylUtil")
-args <- c(8, "~/Projects/sasa_epi/methylUtil/juvenile_samples_8x8.txt"); setwd("~/Projects/sasa_epi/methylUtil")
+# args <- c(8, "~/Projects/sasa_epi/methylUtil/juvenile_samples_8x8.txt"); setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 3)

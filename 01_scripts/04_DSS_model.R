@@ -193,11 +193,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
         } else {
             if(!exists("dml_list")) {
-<<<<<<< HEAD
                 dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
-=======
-                dml_list <- mclapply(chrs, mc.cores = n_cores, mc.preschedule = FALSE, function(chr) {
->>>>>>> 5f63b4c765fdd82ef50dcea984ac857b61eaac8e
                     # Run linear models
                     # Linear model with family nested in treatment
                     message(paste0("Fitting model for chromosome: ", chr))
