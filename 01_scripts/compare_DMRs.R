@@ -14,7 +14,7 @@ rm(p)
 
 args <- commandArgs(TRUE)
 # args <- c("06_methylation_results/Adults_6x6_dmr_delta0.2_fdr0.01.txt.gz", "06_methylation_results/Adults_8x8_dmr_delta0.2_fdr0.01.txt.gz") ; setwd("~/Projects/sasa_adults/methylUtil")
-# args <- "config_unpaired.yml" ; setwd("~/Projects/safo_epi/methylUtil")
+# args <- c("juveniles_7x7_glm_min5_max20_groupWild_dmr_pval0.001.txt.gz", "juveniles_7x7_glm_min10_max20_groupWild_dmr_pval0.001.txt.gz")
 
 ## Sanity checking
 if (length(args) != 2)
@@ -38,6 +38,9 @@ dmr1 <- makeDMRgrange(dmr1)
 dmr2 <- makeDMRgrange(dmr2)
 
 hits <- suppressWarnings(findOverlaps(dmr1, dmr2, ignore.strand = TRUE))
+
+# TPR <- length(hits) / attr(hits, "nRnode")
+# FDR <- (attr(hits, "nLnode") - length(hits)) / attr(hits, "nLnode")
 
 dmr1_hits <- length(unique(queryHits(hits)))
 dmr2_hits <- length(unique(subjectHits(hits)))

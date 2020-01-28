@@ -16,7 +16,7 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 args <- commandArgs(T)
 # args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
-# args <- "~/Projects/sasa_epi/methylUtil/config_juveniles_7x7.yml"; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_juvenile_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -44,7 +44,6 @@ if (length(formula_parts) > 1 & grepl(config$options$analysis_type, "wald", igno
 
 # Load files and set up design
 samples <- read.table(config$input$sample_info, header = T, stringsAsFactors = FALSE)
-chrs <- read.table(config$input$chrs, header = FALSE, stringsAsFactors = FALSE)[,1]
 
 if(!all(c("sample", "file", formula_parts) %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\', and given factor(s).")
@@ -126,9 +125,9 @@ if (file.exists(bs_obj_path)) {
 } else if (file.exists(paste0("06_methylation_results/", gsub("\\..*", "", config$input$sample_info), "_all_data.rds"))) {
     message("Loading existing BSseq object")
     bs_obj_all <- readRDS(file = paste0("06_methylation_results/", gsub("\\..*", "", config$input$sample_info), "_all_data.rds"))
-    keep <- (rowSums(getCoverage(bs_obj, type = "Cov") >= min_cov & getCoverage(bs_obj, type = "Cov") <= max_cov)) >= min_ind
+    keep <- (rowSums(getCoverage(bs_obj_all, type = "Cov") >= min_cov & getCoverage(bs_obj_all, type = "Cov") <= max_cov)) >= min_ind
     bs_obj <- bs_obj_all[keep, ]
-    rm(bs_ob_all, keep)
+    rm(bs_obj_all, keep)
     message("Saving BSseq obj for future use...")
     saveRDS(object = bs_obj, file = bs_obj_path, compress = "gzip")
 } else {    
@@ -139,14 +138,14 @@ if (file.exists(bs_obj_path)) {
         #bs_obj <- makeBSseqData(list(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)]), samples[i,"sample"])
         return(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
     })
-    bs_obj_all <- makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample)
+    bs_obj_all <- suppressWarnings(makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample))
     bs_obj_all <- bs_obj_all[(rowSums(getCoverage(bs_obj_all, type = "Cov") >= 1) == ncol(bs_obj_all)), ]
     saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(args[2])), "_all_data.rds"), compress = "gzip")
     
     # Filter CpGs on min and max coverage in min individuals
     keep <- (rowSums(getCoverage(bs_obj, type = "Cov") >= min_cov & getCoverage(bs_obj, type = "Cov") <= max_cov)) >= min_ind
     bs_obj <- bs_obj_all[keep, ]
-    rm(bs_ob_all, keep)
+    rm(bs_obj_all, keep)
     message("Saving BSseq obj for future use...")
     saveRDS(object = bs_obj, file = bs_obj_path, compress = "gzip")
 }
@@ -220,4 +219,13 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
         fwrite(dmr, file = paste0(bs_obj_path, "_", coef2, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
         
     }
+}
+
+if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
+    if (length(formula_parts) > 1)
+        stop("dmrseq imlementation currently only supports one factor")
+    regions <- dmrseq(bs_obj, testCovariate = formula_parts, 
+                      cutoff = 0.05, BPPARAM = MulticoreParam(1))
+    fwrite(regions[regions[,"pval"] <= pval, ], file = paste0(bs_obj_path, "_", formula_parts, "_dmrseq_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    
 }

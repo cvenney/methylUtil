@@ -23,14 +23,12 @@ args <- commandArgs(T)
 # args <- c(8, "~/Projects/sasa_epi/methylUtil/juvenile_samples_8x8.txt"); setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
-if (length(args) != 3)
-    stop("Usage: DSS_coverage_plotting.R <n_core> <sample_info.txt> <chrs.txt>")
+if (length(args) != 2)
+    stop("Usage: DSS_coverage_plotting.R <n_core> <sample_info.txt>")
 
 n_cores <- as.integer(args[1])
 setDTthreads(threads = n_cores)
 samples <- read.table(args[2], header = T, stringsAsFactors = FALSE)
-
-ncol <- floor(sqrt(length(chrs)))
 
 if(!all(c("sample", "file") %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\'.")
@@ -46,7 +44,7 @@ bs_obj_all <- lapply(1:nrow(samples), function(i) {
     return(samp[, .("chr" = V1, "pos" = V2, "N" = V7, "X" = V5)])
 })
 
-bs_obj_all <- makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample)
+bs_obj_all <- suppressWarnings(makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample))
 bs_obj_all <- bs_obj_all[(rowSums(getCoverage(bs_obj_all, type = "Cov") >= 1) == ncol(bs_obj_all)), ]
 
 saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(args[2])), "_all_data.rds"), compress = "gzip")
@@ -66,6 +64,21 @@ ind_coverage <- data.frame(
 )
 write.table(ind_coverage, paste0(outfile_name, "_Individual_coverage_stats.txt"), col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
 
+## Individual histograms
+p <- par()
+breaks <- c(seq(0, quantile(getCoverage(bs_obj_all, type = "Cov"), 0.995), 1), max(getCoverage(bs_obj_all, type = "Cov")))
+pdf(paste0(outfile_name, "_Individual_coverage.pdf"), width = 8.5, height = 11)
+par(mfrow = c(floor(sqrt(ncol(bs_obj_all))), ceiling(sqrt(ncol(bs_obj_all)))))
+for (i in 1:ncol(bs_obj_all)) {
+    hist(getCoverage(bs_obj_all[,i], type = "Cov"), 
+         breaks = breaks, 
+         xlim = c(0, length(breaks)),
+         xlab = "Coverage (# reads)", 
+         main = sampleNames(bs_obj_all)[i], 
+         col = "grey")
+}
+dev.off()
+suppressWarnings(par(p))
 
 ## Principle coordinates analysis to identify outlier individuals based on coverage
 euc_dist <- dist(t(getCoverage(bs_obj_all, type = "Cov")))
@@ -78,14 +91,3 @@ mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
     geom_vline(xintercept = 0, color = "grey") +
     geom_label_repel(fill = "black", color = "white")
 ggsave(paste0(outfile_name, "_mds_plot_coverage.png"), mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
-
-euc_miss <- dist(t(getCoverage(bs_obj_all, type = "Cov")>0))
-mds <- as.data.frame(cmdscale(euc_miss))
-names(mds) <- c("PC1", "PC2")
-mds$Ind <- row.names(mds)
-mds_plot <- ggplot(mds, aes(x = PC1, y = PC2, label = Ind)) +
-    theme_adjustments +
-    geom_hline(yintercept = 0, color = "grey") +
-    geom_vline(xintercept = 0, color = "grey") +
-    geom_label_repel(fill = "black", color = "white")
-ggsave(paste0(outfile_name, "_mds_plot_missing_data.png"), mds_plot, device = "png", width = 8, height = 8, units = "in", dpi = 300)
