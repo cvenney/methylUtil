@@ -13,7 +13,7 @@ options:
     # set to "0" to use all cores, keep in mind memory requirements for each thread
     n_cores: 4
     
-    # Minimum and maximum read coverage thresholds (inclusive thresholds: e.g. coverage >= min, coverage <= max)
+    # Minimum and maximum read coverage thresholds (inclusive thresholds; e.g. coverage >= min, coverage <= max)
     min_coverage: 5
     max_coverage: 30
     
