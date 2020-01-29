@@ -7,7 +7,7 @@ OUTPUT="04_filtered_bedGraphs"
 NCPUS=4
 
 # Negative intersect with bedtools
-for file in $(ls "$INPUT"/*_merged.bedGraph.gz | perl -pe 's/\.bedGraph\.gz//g')
+for file in $(ls "$INPUT"/*.bedGraph.gz | perl -pe 's/\.bedGraph\.gz//g')
 do
     name=$(basename $file)
     
