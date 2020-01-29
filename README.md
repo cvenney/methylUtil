@@ -6,14 +6,19 @@ Scripts to:
    - transcriptional start sites (TSS)
    - promoter regions
    - CpG islands and shores
+3) test for differential methylation using R packages "_DSS_" and "_dmrseq_"
 
 ## Pre-requisites
 
 #### Software
 
-samtools v1.8+: https://samtools.github.io/  
-bedtools v2.29.0+: https://bedtools.readthedocs.io/en/latest/  
-EMBOSS v6.6.0+: http://emboss.sourceforge.net/index.html  
+bedtools: https://bedtools.readthedocs.io/en/latest/  
+R: https://www.r-project.org/  
+DSS: http://bioconductor.org/packages/release/bioc/html/DSS.html  
+
+_Optional:_
+dmrseq: http://bioconductor.org/packages/release/bioc/html/DSS.html  
+EMBOSS: http://emboss.sourceforge.net/index.html  
 
 #### Data
 
@@ -28,9 +33,17 @@ EMBOSS v6.6.0+: http://emboss.sourceforge.net/index.html
 
 2) Optional: Copy or download the gene annotation into the `./02_reference` folder and rename it "genes.gff" (can be gzipped)
 
-3) Copy bedGraph files (gzipped) into the `./03_methylation_bedGraphs` folder 
+3a) Copy bedGraph files (gzipped) into the `./03_raw_bedGraphs` folder and execute `./01_scripts/01_remove_CT_SNPs_from_bedGraphs.sh`
 
-4) Execute scripts of interest and collect results
+_OR_
+
+3b) Place analysis ready bedGraph files (gzipped)into the `./04_filtered_bedGraphs` folder 
+
+4) Create sample information file (a script to make a crude file based on the available bedGraphs is found in the `./01_scripts/util/` directory)
+
+5) Create a copy of the `./config.yml` file and adjust the parameters to suit your analysis 
+
+5) Execute scripts of interest and collect results
 
 ## Contact
 
