@@ -16,7 +16,7 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 args <- commandArgs(T)
 # args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
-# args <- "~/Projects/sasa_epi/methylUtil/config_juvenile_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_adult_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -140,10 +140,10 @@ if (file.exists(bs_obj_path)) {
     })
     bs_obj_all <- suppressWarnings(makeBSseqData(dat = bs_obj_all, sampleNames = samples$sample))
     bs_obj_all <- bs_obj_all[(rowSums(getCoverage(bs_obj_all, type = "Cov") >= 1) == ncol(bs_obj_all)), ]
-    saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(args[2])), "_all_data.rds"), compress = "gzip")
+    saveRDS(bs_obj_all, paste0("06_methylation_results/", gsub("\\..*", "", basename(config$input$sample_info)), "_all_data.rds"), compress = "gzip")
     
     # Filter CpGs on min and max coverage in min individuals
-    keep <- (rowSums(getCoverage(bs_obj, type = "Cov") >= min_cov & getCoverage(bs_obj, type = "Cov") <= max_cov)) >= min_ind
+    keep <- (rowSums(getCoverage(bs_obj_all, type = "Cov") >= min_cov & getCoverage(bs_obj_all, type = "Cov") <= max_cov)) >= min_ind
     bs_obj <- bs_obj_all[keep, ]
     rm(bs_obj_all, keep)
     message("Saving BSseq obj for future use...")
@@ -157,7 +157,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
     } else {
-        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+        dml_list <- lapply(grep("NC_0.*", unique(seqnames(bs_obj)), value = TRUE), function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
             message(paste0("Processing chromosome: ", chr))
@@ -192,7 +192,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
         } else {
             if(!exists("dml_list")) {
-                dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+                dml_list <- lapply(grep("NC_0.*", unique(seqnames(bs_obj)), value = TRUE), function(chr) {
                     # Run linear models
                     # Linear model with family nested in treatment
                     message(paste0("Fitting model for chromosome: ", chr))
