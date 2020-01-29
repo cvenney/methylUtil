@@ -16,7 +16,7 @@ bedtools: https://bedtools.readthedocs.io/en/latest/
 R: https://www.r-project.org/  
 DSS: http://bioconductor.org/packages/release/bioc/html/DSS.html  
 
-_Optional:_
+_Optional:_  
 dmrseq: http://bioconductor.org/packages/release/bioc/html/DSS.html  
 EMBOSS: http://emboss.sourceforge.net/index.html  
 
@@ -33,11 +33,11 @@ EMBOSS: http://emboss.sourceforge.net/index.html
 
 2) Optional: Copy or download the gene annotation into the `./02_reference` folder and rename it "genes.gff" (can be gzipped)
 
-3a) Copy bedGraph files (gzipped) into the `./03_raw_bedGraphs` folder and execute `./01_scripts/01_remove_CT_SNPs_from_bedGraphs.sh`
+3) a) Copy bedGraph files (gzipped) into the `./03_raw_bedGraphs` folder and execute `./01_scripts/01_remove_CT_SNPs_from_bedGraphs.sh`
 
 _OR_
 
-3b) Place analysis ready bedGraph files (gzipped)into the `./04_filtered_bedGraphs` folder 
+3) b) Place analysis ready bedGraph files (gzipped)into the `./04_filtered_bedGraphs` folder 
 
 4) Create sample information file (a script to make a crude file based on the available bedGraphs is found in the `./01_scripts/util/` directory)
 
