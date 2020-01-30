@@ -140,34 +140,6 @@ ggsave(paste0(config$output$outfile_prefix, "_global_methylation_mds_points.png"
 rm(mds, all_mds, all_mds_points, M_values)
 
 
-## Methylation ratios by sample
-
-Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
-# Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
-
-df <- pivot_longer(as.data.frame(Beta_values), everything(), names_to = "Sample", values_to = "Methylation")
-rm(Beta_values)
-Beta_summary <- df %>% 
-    group_by(Sample) %>% 
-    summarise(Mean = mean(Methylation, na.rm = TRUE), 
-              Median = median(Methylation, na.rm = TRUE), 
-              SD = sd(Methylation, na.rm = TRUE), 
-              NAs = sum(is.na(Methylation)))
-
-fwrite(Beta_summary, paste0(config$output$outfile_prefix, "_Beta_summary_by_individual.txt"), quote = FALSE, sep = "\t")
-
-methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
-    theme_adjustments +
-    theme(axis.text = element_text(size = 8)) +
-    geom_histogram(fill = "steelblue3", binwidth = 0.05) +
-    facet_wrap(~Sample, ncol = floor(sqrt(nrow(samples)))) +
-    ylab("Count")
-ggsave(paste0(config$output$outfile_prefix, "_methylation_ratio_hist_by_sample.png"), plot = methyl_ratio_hist, device = "png",
-       width = 8.5, height = 11, units = "in", dpi = 300)
-rm(df, methyl_ratio_hist)
-
-
-
 #### Diff Methyl results and heatmaps ####
 dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
     
@@ -196,13 +168,13 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
                             "nCG_median" = median(nCG),
                             "nCG_SD" = sd(nCG),
                             "N" = .N), by = sign(areaStat)]
-
+    
     # "length_Mean" = mean(end - start),
     # "length_Median" = median(end - start),
     # "length_SD" = sd(end - start),
     
     fwrite(dmr_summary, paste0(config$output$outfile_prefix, "_DMR_hyper_hypo_distribution_", coef, ".txt"), quote = FALSE, sep = "\t")
-
+    
 }
 
 DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = NULL) {
@@ -223,7 +195,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     rm(ldmr, hits)
     
     png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
-
+    
     col_cols <- lapply(anno_columns, function(i) {
         levels <- unique(sample_info[, i])
         coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
@@ -296,6 +268,8 @@ pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 1
 ## Differential Methylation summary and heatmaps
 
 Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
+# Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
+
 ME <- bs_obj_all@rowRanges
 mcols(ME) <- as.data.frame(Beta_values)
 # mcols(ME) <- as.data.frame(M_values)
@@ -323,7 +297,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
     DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
-
+    
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
     for (coef in attr(terms.formula(formula), "term.labels")) {
@@ -353,4 +327,31 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         
     }
 }
+
+rm(mean_cov, cov_diff, bs_obj_all)
+
+## Methylation ratios by sample
+
+df <- pivot_longer(as.data.frame(mcols(ME)), everything(), names_to = "Sample", values_to = "Methylation")
+rm(ME)
+Beta_summary <- df %>% 
+    group_by(Sample) %>% 
+    summarise(Mean = mean(Methylation, na.rm = TRUE), 
+              Median = median(Methylation, na.rm = TRUE), 
+              SD = sd(Methylation, na.rm = TRUE), 
+              NAs = sum(is.na(Methylation)))
+
+fwrite(Beta_summary, paste0(config$output$outfile_prefix, "_Beta_summary_by_individual.txt"), quote = FALSE, sep = "\t")
+
+methyl_ratio_hist <- ggplot(df, aes(x = Methylation)) +
+    theme_adjustments +
+    theme(axis.text = element_text(size = 8)) +
+    geom_histogram(fill = "steelblue3", binwidth = 0.05) +
+    facet_wrap(~Sample, ncol = floor(sqrt(nrow(samples)))) +
+    ylab("Count")
+ggsave(paste0(config$output$outfile_prefix, "_methylation_ratio_hist_by_sample.png"), plot = methyl_ratio_hist, device = "png",
+       width = 8.5, height = 11, units = "in", dpi = 300)
+rm(df, methyl_ratio_hist)
+
+
 
