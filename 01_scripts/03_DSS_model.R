@@ -2,7 +2,7 @@
 ## Working script for DML / DMR quantification using DSS
 
 ## Install and load necessary packages
-for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", "tidyverse")) {
+for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "parallel", "configr", "tidyverse")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
         if(p %in% c("DSS", "bsseq")) {
@@ -16,7 +16,7 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "parallel", "configr", 
 
 args <- commandArgs(T)
 # args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
-# args <- "~/Projects/sasa_epi/methylUtil/config_adult_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_juvenile_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
 
 ## Sanity checking
 if (length(args) != 1)
@@ -27,7 +27,7 @@ if (!is.yaml.file(args[1]))
 
 config <- read.config(args[1])
 
-if (!grepl(config$options$analysis_type, "wald|glm", ignore.case = TRUE))
+if (!grepl(config$options$analysis_type, "wald|glm|dmrseq", ignore.case = TRUE))
     stop("Invalid analysis type.")
 
 
@@ -224,8 +224,10 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
 if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
     if (length(formula_parts) > 1)
         stop("dmrseq imlementation currently only supports one factor")
+    pData(bs_obj) <- samples
+    bs_obj <- bs_obj[grepl("NC_0.*", seqnames(bs_obj)),]
     regions <- dmrseq(bs_obj, testCovariate = formula_parts, 
                       cutoff = 0.05, BPPARAM = MulticoreParam(1))
-    fwrite(regions[regions[,"pval"] <= pval, ], file = paste0(bs_obj_path, "_", formula_parts, "_dmrseq_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(as.data.frame(regions), file = paste0(bs_obj_path, "_", formula_parts, "_dmrseq_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
     
 }
