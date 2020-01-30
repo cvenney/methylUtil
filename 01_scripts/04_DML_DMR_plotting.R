@@ -101,6 +101,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE) & (is.null(c
 bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max_cov)
 
 if (file.exists(bs_obj_path)) {
+    message("Loading BSseq object")
     bs_obj_all <- readRDS(file = bs_obj_path)
 } else {
     stop("BSseq object not found! You need to run 03_DSS_model.R first.")
@@ -194,8 +195,6 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
     rm(ldmr, hits)
     
-    png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
-    
     col_cols <- lapply(anno_columns, function(i) {
         levels <- unique(sample_info[, i])
         coef_cols <- sapply(1:length(levels), function(j) {grey.colors(length(levels))[j]})
@@ -204,10 +203,19 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     })
     names(col_cols) <- anno_columns
     
-    col_anno <- HeatmapAnnotation(df = design, col = col_cols)
+    if (grepl(":", coef)) {
+        col_order <- order(interaction(sample_info[ , anno_columns]))
+        coef <- gsub(":", "\\.", coef)
+    } else {
+        col_order <- order(interaction(sample_info[ , c(anno_columns[!anno_columns %in% coef], coef)]))
+    }
+    
+    col_anno <- HeatmapAnnotation(df = design[col_order, ], col = col_cols)
+
+    png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
     
     print(Heatmap(
-        matrix = as.matrix(mcols(ldmrs)[sample_info[ ,"sample"]]),
+        matrix = as.matrix(mcols(ldmrs))[, col_order],
         cluster_rows = TRUE,
         clustering_distance_rows = "euclidean",
         row_title = NULL,
@@ -282,16 +290,16 @@ bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max
 
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     
-    ## MA plot
-    g1 <- levels(factor(samples[, formula_parts]))[1]
-    g2 <- levels(factor(samples[, formula_parts]))[2]
-    g1 <- samples[samples[, formula_parts] == g1, "sample"]
-    g2 <- samples[samples[, formula_parts] == g2, "sample"]
-    cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
-    all_cpg <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+    # ## MA plot
+    # g1 <- levels(factor(samples[, formula_parts]))[1]
+    # g2 <- levels(factor(samples[, formula_parts]))[2]
+    # g1 <- samples[samples[, formula_parts] == g1, "sample"]
+    # g2 <- samples[samples[, formula_parts] == g2, "sample"]
+    # cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
+    # all_cpg <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
     dmrs <- fread(paste0(bs_obj_path, "_dmr_delta", delta, "_pval", pval,".txt.gz"))
-    pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = formula_parts, pval_threshold = pval)
-    rm(cov_diff, all_cpg)
+    # pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = formula_parts, pval_threshold = pval)
+    # rm(cov_diff, all_cpg)
     
     dmls <- fread(paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"))
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
@@ -309,16 +317,16 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
             coef2 <- paste0(coef, levels(factor(samples[, coef]))[2])
         }
         
-        ## MA plot
-        g1 <- levels(factor(samples[, coef]))[1]
-        g2 <- levels(factor(samples[, coef]))[2]
-        g1 <- samples[samples[,coef] == g1, "sample"]
-        g2 <- samples[samples[,coef] == g2, "sample"]
-        cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
-        all_cpg <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
+        # ## MA plot
+        # g1 <- levels(factor(samples[, coef]))[1]
+        # g2 <- levels(factor(samples[, coef]))[2]
+        # g1 <- samples[samples[,coef] == g1, "sample"]
+        # g2 <- samples[samples[,coef] == g2, "sample"]
+        # cov_diff <- rowMeans(as.matrix(mcols(ME)[,g2]), na.rm = TRUE) - rowMeans(as.matrix(mcols(ME)[,g1]), na.rm = TRUE)
+        # all_cpg <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
         dmrs <- fread(paste0(bs_obj_path, "_", coef2, "_dmr_pval", pval,".txt.gz"))
-        pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = pval)
-        rm(cov_diff, all_cpg)
+        # pseudoMAplot(all_cpg = all_cpg, dmrs = dmrs, coverage = mean_cov, diff = cov_diff, coef = coef2, pval_threshold = pval)
+        # rm(cov_diff, all_cpg)
         
         dmls <- fread(paste0(bs_obj_path, "_", coef2, "_dml_pval", pval,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
