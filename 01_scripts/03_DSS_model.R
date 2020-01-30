@@ -226,7 +226,7 @@ if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
         stop("dmrseq imlementation currently only supports one factor")
     pData(bs_obj) <- samples
     bs_obj <- bs_obj[grepl("NC_0.*", seqnames(bs_obj)),]
-    regions <- dmrseq(bs_obj, testCovariate = formula_parts, 
+    regions <- dmrseq(bs_obj, testCovariate = formula_parts,
                       cutoff = 0.05, BPPARAM = MulticoreParam(1))
     fwrite(as.data.frame(regions), file = paste0(bs_obj_path, "_", formula_parts, "_dmrseq_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
     
