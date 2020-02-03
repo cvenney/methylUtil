@@ -1,15 +1,15 @@
 #!/bin/bash
 # generate_genomic_context.sh
 
-if [ $# -ne 1 ]
+if [ $# -ne 1 ];then
 	echo "Usage: $0 <DML or DMR BED file>"
+fi
 
 BED=$1
 
 GFF="02_reference/genes.gff.gz"
 
-if [ ! -e ${GFF%%.*}_with_utrs.gff ]
-then
+if [ ! -e ${GFF%%.*}_with_utrs.gff ];then
 	echo "Adding UTRs to GFF file..."
 	python3 01_scripts/util/NCBI_add_utrs_to_gff.py $GFF > ${GFF%%.*}_with_utrs.gff
 fi

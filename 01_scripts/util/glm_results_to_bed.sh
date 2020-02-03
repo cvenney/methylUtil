@@ -3,7 +3,7 @@
 
 if [ $# -ne 1 ]
 then
-    echo "Usage: $0 <wald_test_DMR_file>"
+    echo "Usage: $0 <glm_test_DMR_file>"
     exit
 fi
 
