@@ -31,8 +31,8 @@ makeDMRgrange <- function(dmr_dt) {
 dmr1 <- fread(args[1])
 dmr2 <- fread(args[2])
 
-dmr1_name <- sub("(.*/)(.+)(_dmr.*)", "\\2", args[1])
-dmr2_name <- sub("(.*/)(.+)(_dmr.*)", "\\2", args[2])
+dmr1_name <- sub("(.*/)(.+)(_min.*)", "\\2", args[1])
+dmr2_name <- sub("(.*/)(.+)(_min.*)", "\\2", args[2])
 
 dmr1 <- makeDMRgrange(dmr1)
 dmr2 <- makeDMRgrange(dmr2)
