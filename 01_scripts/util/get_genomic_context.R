@@ -6,7 +6,7 @@ if (suppressPackageStartupMessages(!require(tidyverse))) {
 }
 
 args <- commandArgs(TRUE)
-setwd("~/Desktop/methylUtil/"); args <- "05_bed_files/adults_8x8_min5_max20_groupWild_dmr_pval0.001_dmr_context.txt"
+# setwd("~/Desktop/methylUtil/"); args <- "05_bed_files/adults_8x8_min5_max20_groupWild_dmr_pval0.001_dmr_context.txt"
 
 if (length(args) != 1) {
     stop("Usage: get_genomic_context.R <bedtools_intersect_outfile>")
