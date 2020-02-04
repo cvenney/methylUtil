@@ -336,7 +336,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     }
 }
 
-rm(mean_cov, cov_diff, bs_obj_all)
+rm(mean_cov, bs_obj_all)
 
 ## Methylation ratios by sample
 
