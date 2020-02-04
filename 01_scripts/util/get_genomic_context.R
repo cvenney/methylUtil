@@ -6,17 +6,25 @@ if (suppressPackageStartupMessages(!require(tidyverse))) {
 }
 
 args <- commandArgs(TRUE)
-# setwd("~/Desktop/salmon_annotation/"); args <- "dmr_context.txt"
+setwd("~/Desktop/methylUtil/"); args <- "05_bed_files/adults_8x8_min5_max20_groupWild_dmr_pval0.001_dmr_context.txt"
 
 if (length(args) != 1) {
     stop("Usage: get_genomic_context.R <bedtools_intersect_outfile>")
 }
+
+features <- c("region", "gene", "CDS", "exon", "mRNA", "three_prime_UTR", "five_prime_UTR", "transcript", "pseudogene", "lnc_RNA")
 
 x <- read.table(args[1], sep = "\t", stringsAsFactors = FALSE)
 
 xtab <- as.data.frame(table(paste(x$V1, x$V2, sep = ":"), x$V9)) %>%
     pivot_wider(., id_cols = Var1, names_from = Var2, values_from = Freq)
 xtab$feature_total <- rowSums(xtab[,-1])
+
+if (any(!features %in% names(xtab))) {
+    for (f in features[!features %in% names(xtab)]) {
+        xtab <- mutate(xtab, !!f := 0)
+    }
+}
 
 context <- xtab %>%
     mutate(

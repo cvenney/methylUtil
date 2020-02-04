@@ -9,6 +9,15 @@ BED=$1
 
 GFF="02_reference/genes.gff.gz"
 
+if [ ! -f $GFF ];then
+    if [ ! -f ${GFF%.*} ];then
+        echo "Error: GFF file not found!"
+        exit
+    else
+    	GFF=${GFF%.*}
+    fi
+fi
+
 if [ ! -e ${GFF%%.*}_with_utrs.gff ];then
 	echo "Adding UTRs to GFF file..."
 	python3 01_scripts/util/NCBI_add_utrs_to_gff.py $GFF > ${GFF%%.*}_with_utrs.gff
