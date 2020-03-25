@@ -1,6 +1,15 @@
 #!/usr/bin/env Rscript
 ## Methylation plotting
 
+args <- commandArgs(T)
+# args <- "~/Projects/sasa_epi/methylUtil/config_juveniles_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
+# args <- "config_unpaired.yml" ; setwd("~/Projects/safo_epi/methylUtil")
+
+## Sanity checking
+if (length(args) != 1)
+    stop("Usage: 05_DML_DMR_plotting.R <config.yml>")
+
+## Load required packages
 for (p in c("configr", "png", "tidyverse", "data.table", "BiocManager", "ggplot2", "ggrepel", "ComplexHeatmap", "DSS", "bsseq", "vegan", "parallel")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
@@ -16,19 +25,11 @@ theme_adjustments <- theme_linedraw() + theme(axis.text = element_text(size = 12
                                               axis.title = element_text(size = 14, colour = "black"),
                                               panel.grid = element_blank())
 
-args <- commandArgs(T)
-# args <- "~/Projects/sasa_epi/methylUtil/config_juveniles_7x7.yml" ; setwd("~/Projects/sasa_epi/methylUtil")
-# args <- "config_unpaired.yml" ; setwd("~/Projects/safo_epi/methylUtil")
-
-## Sanity checking
-if (length(args) != 1)
-    stop("Usage: 05_DML_DMR_plotting.R <config.yml>")
-
+## Load configurations
 if (!is.yaml.file(args[1]))
     stop("You must supply a configuration file in YAML format.\nUsage: 05_DML_DMR_plotting.R <config.yml>")
 
 config <- read.config(args[1])
-
 
 # Parse formula
 if (is.null(config$options$formula) | !grepl("\\~", config$options$formula))
@@ -178,7 +179,7 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
     
 }
 
-DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = NULL) {
+DMR_heatmap <- function(dmrs, bs_seq, design, anno_columns, sample_info, coef = NULL) {
     
     if(!"GRanges" %in% class(dmrs)) {
         ldmrs <- GRanges(
@@ -190,10 +191,12 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
         ldmrs <- dmrs
     }
     
-    hits <- findOverlaps(Betas, ldmrs, ignore.strand = TRUE)
-    ldmr <- Betas[queryHits(hits)]
-    mcols(ldmrs) <- cbind(mcols(ldmrs), aggregate(x = mcols(ldmr), by = list(subjectHits(hits)), FUN = mean, na.rm = TRUE)[,-1])
-    rm(ldmr, hits)
+    hits <- findOverlaps(bs_obj, ldmrs, ignore.strand = TRUE)
+    dmr_cov <- aggregate(getCoverage(bs_obj, type = "Cov")[queryHits(hits)], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)
+    dmr_M <- aggregate(getCoverage(bs_obj, type = "M")[queryHits(hits)], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)
+    mcols(ldmrs) <- cbind(mcols(ldmrs), dmr_M / dmr_cov)
+
+    fwrite(ldmrs, paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap_mean_Betas.txt", sep = "\t"))
     
     col_cols <- lapply(anno_columns, function(i) {
         levels <- unique(sample_info[, i])
@@ -217,7 +220,7 @@ DMR_heatmap <- function(dmrs, Betas, design, anno_columns, sample_info, coef = N
     print(Heatmap(
         matrix = as.matrix(mcols(ldmrs))[, col_order],
         cluster_rows = TRUE,
-        clustering_distance_rows = "euclidean",
+        clustering_distance_rows = "pearson",
         row_title = NULL,
         cluster_columns = FALSE,
         use_raster = TRUE,
@@ -275,7 +278,7 @@ pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 1
 
 ## Differential Methylation summary and heatmaps
 
-Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
+# Beta_values <- getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")
 # Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
 
 ME <- bs_obj_all@rowRanges
