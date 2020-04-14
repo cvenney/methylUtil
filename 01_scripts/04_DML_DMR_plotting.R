@@ -179,7 +179,7 @@ dml_dmr_summary <- function(dmls, dmrs, coef = NULL, flag = NULL) {
     
 }
 
-DMR_heatmap <- function(dmrs, bs_seq, design, anno_columns, sample_info, coef = NULL) {
+DMR_heatmap <- function(dmrs, bs_obj, design, anno_columns, sample_info, coef = NULL) {
     
     if(!"GRanges" %in% class(dmrs)) {
         ldmrs <- GRanges(
@@ -192,11 +192,11 @@ DMR_heatmap <- function(dmrs, bs_seq, design, anno_columns, sample_info, coef = 
     }
     
     hits <- findOverlaps(bs_obj, ldmrs, ignore.strand = TRUE)
-    dmr_cov <- aggregate(getCoverage(bs_obj, type = "Cov")[queryHits(hits)], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)
-    dmr_M <- aggregate(getCoverage(bs_obj, type = "M")[queryHits(hits)], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)
+    dmr_cov <- aggregate(getCoverage(bs_obj, type = "Cov")[queryHits(hits),], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)[,-1]
+    dmr_M <- aggregate(getCoverage(bs_obj, type = "M")[queryHits(hits),], by = list(subjectHits(hits)), FUN = sum, na.rm = TRUE)[,-1]
     mcols(ldmrs) <- cbind(mcols(ldmrs), dmr_M / dmr_cov)
 
-    fwrite(ldmrs, paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap_mean_Betas.txt", sep = "\t"))
+    fwrite(as.data.frame(ldmrs), paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap_mean_Betas.txt"), sep = "\t")
     
     col_cols <- lapply(anno_columns, function(i) {
         levels <- unique(sample_info[, i])
@@ -218,7 +218,7 @@ DMR_heatmap <- function(dmrs, bs_seq, design, anno_columns, sample_info, coef = 
     png(filename = paste0(config$output$outfile_prefix, "_", coef, "_DMR_heatmap.png"), width = 8, height = 11, units = "in", res = 300)
     
     print(Heatmap(
-        matrix = as.matrix(mcols(ldmrs))[, col_order],
+        matrix = as.matrix(dmr_M / dmr_cov)[, col_order],
         cluster_rows = TRUE,
         clustering_distance_rows = "pearson",
         row_title = NULL,
@@ -282,11 +282,11 @@ pseudoMAplot <- function(all_cpg, dmrs, coverage, diff, coef, pval_threshold = 1
 # Beta_values <- asin(sqrt(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov")))
 
 ME <- bs_obj_all@rowRanges
-mcols(ME) <- as.data.frame(Beta_values)
+mcols(ME) <- as.data.frame(getCoverage(bs_obj_all, type = "M") / getCoverage(bs_obj_all, type = "Cov"))
 # mcols(ME) <- as.data.frame(M_values)
-rm(Beta_values)
+# rm(Beta_values)
 
-mean_cov <- rowMeans(getCoverage(bs_obj_all, type = "Cov"), na.rm = TRUE)
+# mean_cov <- rowMeans(getCoverage(bs_obj_all, type = "Cov"), na.rm = TRUE)
 # var_cov <- rowVars(getCoverage(bs_obj_all, type = "Cov"))
 
 bs_obj_path <- paste0(config$output$outfile_prefix, "_min", min_cov, "_max", max_cov)
@@ -307,7 +307,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     dmls <- fread(paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"))
     dml_dmr_summary(dmls, dmrs, coef = formula_parts, flag = 0)
     rm(dmls)
-    DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
+    DMR_heatmap(dmrs = dmrs, bs_obj = bs_obj_all, design = design, anno_columns = formula_parts, sample_info = samples, coef = formula_parts)
     
 } else if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     
@@ -334,12 +334,12 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         dmls <- fread(paste0(bs_obj_path, "_", coef2, "_dml_pval", pval,".txt.gz"))
         dml_dmr_summary(dmls, dmrs, coef = coef2, flag = 1)
         rm(dmls)
-        DMR_heatmap(dmrs = dmrs, Betas = ME, design = design, anno_columns = formula_parts, sample_info = samples, coef = coef)
+        DMR_heatmap(dmrs = dmrs, bs_obj = bs_obj_all, design = design, anno_columns = formula_parts, sample_info = samples, coef = coef)
         
     }
 }
 
-rm(mean_cov, bs_obj_all)
+# rm(mean_cov, bs_obj_all)
 
 ## Methylation ratios by sample
 
