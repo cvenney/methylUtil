@@ -7,13 +7,13 @@ if (!suppressMessages(require(p, character.only = T))) {
     if(p %in% c("GenomicRanges", "limma")) {
         BiocManager::install(p)
     } else {
-        install.packages(p, repos = "https://mirror.its.dal.ca/cran", dependencies = T)}
+        install.packages(p, dependencies = T)}
     suppressMessages(library(p, character.only = T))}
 rm(p)
 }
 
 args <- commandArgs(TRUE)
-# args <- c("06_methylation_results/Adults_6x6_dmr_delta0.2_fdr0.01.txt.gz", "06_methylation_results/Adults_8x8_dmr_delta0.2_fdr0.01.txt.gz") ; setwd("~/Projects/sasa_adults/methylUtil")
+# setwd("~/Desktop/methylUtil/"); args <- c("06_methylation_results/adults_6x7_min5_max20_groupWild_dmr_pval0.001.txt.gz", "06_methylation_results/juveniles_7x8_min5_max20_groupWild_dmr_pval0.001.txt.gz") ; setwd("~/Projects/sasa_adults/methylUtil")
 # args <- c("juveniles_7x7_glm_min5_max20_groupWild_dmr_pval0.001.txt.gz", "juveniles_7x7_glm_min10_max20_groupWild_dmr_pval0.001.txt.gz")
 
 ## Sanity checking
@@ -23,7 +23,8 @@ if (length(args) != 2)
 makeDMRgrange <- function(dmr_dt) {
     dmr_gr <- GRanges(
         seqnames = Rle(dmr_dt$chr),
-        range = IRanges(start = dmr_dt$start, end = dmr_dt$end)
+        range = IRanges(start = dmr_dt$start, end = dmr_dt$end),
+        score = dmr_dt$areaStat
     )
     return(sort(dmr_gr))
 }
@@ -39,6 +40,14 @@ dmr2 <- makeDMRgrange(dmr2)
 
 hits <- suppressWarnings(findOverlaps(dmr1, dmr2, ignore.strand = TRUE))
 
+# dmr1[queryHits(hits)]
+# dmr2[subjectHits(hits)]
+# 
+# overlaps <- pintersect(dmr1[queryHits(hits)], dmr2[subjectHits(hits)])
+# width(overlaps) / width(dmr2[subjectHits(hits)])
+# width(overlaps) / width(dmr1[queryHits(hits)])
+# 
+# hits <- hits[percentOverlap > 0.5]
 # TPR <- length(hits) / attr(hits, "nRnode")
 # FDR <- (attr(hits, "nLnode") - length(hits)) / attr(hits, "nLnode")
 

@@ -54,7 +54,7 @@ output <- as.data.frame(table(context$type, context$sign)) %>%
     select("Feature" = Var1, "DM" = Var2, "N" = Freq) %>%
     pivot_wider(., names_from = DM, values_from = N)
 
-write.table(output, paste0("06_methylation_results/", sub("05_bed_files/", "", sub("(.*)?\\..*$", "\\1", args[1])), "_summary.txt"),
+write.table(output, paste0(sub("(.*)?\\..*$", "\\1", args[1]), "_summary.txt"),
             row.names = FALSE, quote = FALSE, sep = "\t")
 
 info <- unique.data.frame(x[,c(1:6)])

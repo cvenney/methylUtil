@@ -7,21 +7,19 @@ then
     exit
 fi
 
-outdir="05_bed_files"
-
 file=$1
-name=$(basename $(echo $file | perl -pe 's/(\.txt)(\.gz)//g'))
+name=$(echo $file | perl -pe 's/(\.txt)(\.gz)//g')
 
 if [ ${file##*.} == "gz" ]
 then
     gunzip -c $file | 
     awk -v OFS="\t" '(NR != 1){
         print $1, $2, $3, "nCG=" $5 ";methdiff=" $8 ";score=" $9, $9, "."
-    }' | sort -k1,2 > ${outdir}/${name}.bed
+    }' | sort -k1,2 > ${name}.bed
 else
     cat $file | 
     awk -v OFS="\t" '(NR != 1){
         print $1, $2, $3, "nCG=" $5 ";methdiff=" $8 ";score=" $9, $9, "."
-    }' | sort -k1,2 > ${outdir}/${name}.bed
+    }' | sort -k1,2 > ${name}.bed
 fi
 
