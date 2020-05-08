@@ -27,7 +27,9 @@ options:
     analysis_type: glm
 
     # Specify model formula (e.g. "~ Treatment")
-    formula: "~ group"
+    formula: "~ family"
+    
+    factors_to_test: group
 
     # These will be used to order the factor for Wald tests (ignored for now in 'glm')
     reference_condition: A
