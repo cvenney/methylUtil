@@ -7,7 +7,7 @@ args <- commandArgs(T)
 
 ## Sanity checking
 if (length(args) != 1)
-    stop("Usage: DSS_model.R <config.yml>")
+    stop("Usage: DSS_model.R <config_nested.yml>")
 
 ## Install and load necessary packages
 for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "parallel", "configr", "tidyverse")) {
@@ -194,7 +194,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
 
 # glm
 if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
-    for (coef in c(formula_parts, to_test)) {
+    for (coef in c(to_test)) {
         # swap colon for period to use in file paths
         if (file.exists(paste0(bs_obj_path, "_", coef, "_all_sites.txt.gz"))) {
             message(paste0("Previous model results detected, loading results for: ", coef))
@@ -207,7 +207,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
                     # Run linear models
                     # Linear model with family nested in treatment
                     message(paste0("Fitting model for chromosome: ", chr))
-                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj[seqnames(bs_obj) == chr,], design = design, formula = formula, smoothing = TRUE))
+                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj[seqnames(bs_obj) == chr,], design = design, formula = as.formula(paste0("~0+", formula_parts, collapse = "+")), smoothing = TRUE))
                     return(dml_test)
                 })
             }
@@ -223,7 +223,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
             dml_factor_test <- do.call(rbind, dml_factor_test)
             dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
             # Write complete outfile...
-            fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+            fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef, "_nested_all_sites.txt.gz"), quote = FALSE, sep = "\t")
         }
         
         # Call DML and DMR
@@ -231,8 +231,8 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
         dmr <- callDMR(dml_factor_test, delta = 0, p.threshold = pval)
         
         # Write DML/DMR outfiles...
-        fwrite(dml, file = paste0(bs_obj_path, "_", coef, "_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
-        fwrite(dmr, file = paste0(bs_obj_path, "_", coef, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml, file = paste0(bs_obj_path, "_", coef, "_nested_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dmr, file = paste0(bs_obj_path, "_", coef, "_nested_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
         
     }
 }
