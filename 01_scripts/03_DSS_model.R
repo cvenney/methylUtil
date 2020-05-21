@@ -2,10 +2,10 @@
 ## Working script for DML / DMR quantification using DSS
 
 ## Install and load necessary packages
-for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "parallel", "configr", "tidyverse")) {
+for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "MethCP", "parallel", "configr", "tidyverse")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
-        if(p %in% c("DSS", "bsseq")) {
+        if(p %in% c("DSS", "bsseq", "MethCP")) {
             BiocManager::install(p)
         } else {
             install.packages(p, repos = "https://mirror.its.dal.ca/cran", dependencies = T)}
@@ -27,7 +27,7 @@ if (!is.yaml.file(args[1]))
 
 config <- read.config(args[1])
 
-if (!grepl(config$options$analysis_type, "wald|glm|dmrseq", ignore.case = TRUE))
+if (!grepl(config$options$analysis_type, "wald|glm|dmrseq|MethCP", ignore.case = TRUE))
     stop("Invalid analysis type.")
 
 
@@ -38,7 +38,7 @@ if (is.null(config$options$formula) | !grepl("\\~", config$options$formula))
 formula <- as.formula(config$options$formula)
 formula_parts <- unlist(strsplit(config$options$formula, split = c("\\~ |\\~|\\s\\+\\s|\\s\\+|\\+\\s|\\+|\\*|\\s\\*|\\s\\*\\s|\\*\\s|\\:")))[-1]
 
-if (length(formula_parts) > 1 & grepl(config$options$analysis_type, "wald", ignore.case = TRUE))
+if (length(formula_parts) > 1 & grepl(config$options$analysis_type, "wald|MethCP", ignore.case = TRUE))
     stop("You specified a Wald test with more than one factor.\nPlease verify your input.")
 
 
@@ -48,7 +48,7 @@ samples <- read.table(config$input$sample_info, header = T, stringsAsFactors = F
 if(!all(c("sample", "file", formula_parts) %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\', and given factor(s).")
 
-if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
+if (grepl(config$options$analysis_type, "wald|MethCP", ignore.case = TRUE)) {
     grp <- formula_parts
     ref <- config$options$reference_condition
     treat <- config$options$treatment_condition
@@ -178,6 +178,37 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     fwrite(dml, file = paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
     fwrite(dmr, file = paste0(bs_obj_path, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
+
+if (grepl(config$options$analysis_type, "MethCP", ignore.case = TRUE)) {
+    
+    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
+        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+        methCP_obj <- MethCPFromStat(dml_test, test.name="DSS", pvals.field = "pval", effect.size.field="diff", seqnames.field="chr", pos.field="pos")
+    } else {
+        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+            # Run linear models
+            # Standard beta-binomial two group test
+            message(paste0("Processing chromosome: ", chr))
+            capture.output(dml_test <- DMLtest(bs_obj[seqnames(bs_obj) == chr, ], group1 = grp1, group2 = grp2, smoothing = TRUE))
+            return(dml_test)
+        })
+        dml_test <- do.call(rbind, dml_list)
+        dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
+        # Write complete outfile...
+        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        methCP_obj <- MethCPFromStat(dml_test, test.name="DSS", pvals.field = "pval", effect.size.field="diff", seqnames.field="chr", pos.field="pos")
+    }
+    
+    # Call DML and DMR
+    dml <- callDML(dml_test, delta = delta, p.threshold = pval)
+    methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "weighted-coverage", sig.level = pval)
+    dmr <- getSigRegion(methCP_obj)
+    
+    # Write DML/DMR outfiles...
+    fwrite(dml, file = paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dmr, file = paste0(bs_obj_path, "_dmr_MethCP_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+}
+
 
 # glm
 if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
