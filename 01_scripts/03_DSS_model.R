@@ -183,8 +183,8 @@ if (grepl(config$options$analysis_type, "MethCP", ignore.case = TRUE)) {
     
     if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
-        methCP_obj <- MethCPFromStat(dml_test, test.name="DSS", pvals.field = "pval", effect.size.field="diff", seqnames.field="chr", pos.field="pos")
-    } else {
+        methCP_obj <- methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
+    }
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
@@ -196,7 +196,7 @@ if (grepl(config$options$analysis_type, "MethCP", ignore.case = TRUE)) {
         dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
         # Write complete outfile...
         fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
-        methCP_obj <- MethCPFromStat(dml_test, test.name="DSS", pvals.field = "pval", effect.size.field="diff", seqnames.field="chr", pos.field="pos")
+        methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
     }
     
     # Call DML and DMR
