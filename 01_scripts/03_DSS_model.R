@@ -1,6 +1,14 @@
 #!/usr/bin/env Rscript
 ## Working script for DML / DMR quantification using DSS
 
+args <- commandArgs(T)
+# args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
+# args <- "~/Projects/sasa_epi/methylUtil/config_juvenile_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
+
+## Sanity checking
+if (length(args) != 1)
+    stop("Usage: DSS_model.R <config.yml>")
+
 ## Install and load necessary packages
 for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "MethCP", "parallel", "configr", "tidyverse")) {
     if (!suppressMessages(require(p, character.only = T))) {
@@ -13,21 +21,12 @@ for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "MethCP", "pa
     rm(p)
 }
 
-
-args <- commandArgs(T)
-# args <- "~/Projects/safo_epi/methylUtil/config_unpaired.yml"; setwd("~/Projects/safo_epi/methylUtil")
-# args <- "~/Projects/sasa_epi/methylUtil/config_juvenile_samples_8x8.yml"; setwd("~/Projects/sasa_epi/methylUtil")
-
-## Sanity checking
-if (length(args) != 1)
-    stop("Usage: DSS_model.R <config.yml>")
-
 if (!is.yaml.file(args[1]))
-    stop("You must supply a configuration file in YAML format.\nUsage: DSS_DML_DMR.R <config.yml>")
+    stop("You must supply a configuration file in YAML format.\nUsage: 03_DSS_model.R <config.yml>")
 
 config <- read.config(args[1])
 
-if (!grepl(config$options$analysis_type, "wald|glm|dmrseq|MethCP", ignore.case = TRUE))
+if (!grepl(config$options$analysis_type, "wald|glm|dmrseq|MethCP-wald|MethCP-glm", ignore.case = TRUE))
     stop("Invalid analysis type.")
 
 
@@ -48,7 +47,7 @@ samples <- read.table(config$input$sample_info, header = T, stringsAsFactors = F
 if(!all(c("sample", "file", formula_parts) %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\', and given factor(s).")
 
-if (grepl(config$options$analysis_type, "wald|MethCP", ignore.case = TRUE)) {
+if (grepl(config$options$analysis_type, "wald|MethCP-wald", ignore.case = TRUE)) {
     grp <- formula_parts
     ref <- config$options$reference_condition
     treat <- config$options$treatment_condition
@@ -59,7 +58,7 @@ if (grepl(config$options$analysis_type, "wald|MethCP", ignore.case = TRUE)) {
     grp2 = samples[samples[, grp] == levels(design$group)[2], "sample"]
 }
 
-if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
+if (grepl(config$options$analysis_type, "glm|MethCP-glm", ignore.case = TRUE)) {
     if (any(!formula_parts %in% colnames(samples)))
         stop("Factors specified in formula design are not present in the ")
     design <- data.frame(samples[, formula_parts])
@@ -179,12 +178,12 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     fwrite(dmr, file = paste0(bs_obj_path, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
 
-if (grepl(config$options$analysis_type, "MethCP", ignore.case = TRUE)) {
+if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
     
     if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
         methCP_obj <- methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
-    }
+    } else {
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
