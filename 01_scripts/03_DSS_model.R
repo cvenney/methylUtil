@@ -26,8 +26,8 @@ if (!is.yaml.file(args[1]))
 
 config <- read.config(args[1])
 
-if (!grepl(config$options$analysis_type, "wald|glm|dmrseq|MethCP-wald|MethCP-glm", ignore.case = TRUE))
-    stop("Invalid analysis type.")
+if (!(config$options$analysis_type %in% c("wald", "glm", "dmrseq", "MethCP-wald", "MethCP-glm")))
+    stop("Invalid analysis type. Check your spelling. Case-sensitive options are: wald, glm, dmrseq, MethCP-wald, MethCP-glm")
 
 
 # Parse formula
@@ -153,8 +153,8 @@ if (file.exists(bs_obj_path)) {
 # Wald tests
 if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     
-    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
-        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+    if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
+        dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
     } else {
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
@@ -166,7 +166,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
         dml_test <- do.call(rbind, dml_list)
         dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
         # Write complete outfile...
-        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml_test, file = paste0(bs_obj_path, "_wald_all_sites.txt.gz"), quote = FALSE, sep = "\t")
     }
     
     # Call DML and DMR
@@ -180,8 +180,8 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
 
 if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
     
-    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
-        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+    if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
+        dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
         methCP_obj <- methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
     } else {
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
@@ -194,7 +194,7 @@ if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
         dml_test <- do.call(rbind, dml_list)
         dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
         # Write complete outfile...
-        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dml_test, file = paste0(bs_obj_path, "_wald_all_sites.txt.gz"), quote = FALSE, sep = "\t")
         methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
     }
     
