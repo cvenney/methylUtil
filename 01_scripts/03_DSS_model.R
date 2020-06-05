@@ -13,8 +13,10 @@ if (length(args) != 1)
 for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "MethCP", "parallel", "configr", "tidyverse")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
-        if(p %in% c("DSS", "bsseq", "MethCP")) {
+        if (p %in% c("DSS", "bsseq")) {
             BiocManager::install(p)
+        } else if (p == "MethCP") { 
+            devtools::install_github(repo = "kylewellband/MethCP", ref = "bug-fixes", repos = BiocManager::repositories())
         } else {
             install.packages(p, repos = "https://mirror.its.dal.ca/cran", dependencies = T)}
         suppressMessages(require(p, character.only = T))}
@@ -182,7 +184,21 @@ if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
     
     if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
-        methCP_obj <- methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
+        dml_test[, norm_stat := qnorm(1-pval/2)*sign(stat)] 
+        methCP_obj <- new("MethCP", 
+                          test = "DSS-wald", 
+                          group1 = grp1, 
+                          group2 = grp2, 
+                          stat = GRangesList(
+                              lapply(unique(as.character(dml_test$chr)), function(chr) {
+                                  sub <- as.character(dml_test$chr) == chr
+                                  Granges(
+                                      seqnames = as.character(dml_test$chr)[sub],
+                                      ranges = IRanges(start = dml_test$pos[sub]), 
+                                      stat = as.numeric(dml_test$norm_stat)[sub],
+                                      pval = as.numeric(dml_test$pval)[sub],
+                                      mu = as.numeric(dml_test$diff)[sub])
+                                  })))
     } else {
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
@@ -195,7 +211,21 @@ if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
         dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
         # Write complete outfile...
         fwrite(dml_test, file = paste0(bs_obj_path, "_wald_all_sites.txt.gz"), quote = FALSE, sep = "\t")
-        methCP_obj <- MethCP(test = "DSS-wald", group1 = "NA", group2 = "NA", chr = dml_test$chr, pos = dml_test$pos, pvals = dml_test$pval, effect.size = dml_test$stat)
+        methCP_obj <- methCP_obj <- new("MethCP", 
+                                        test = "DSS-wald", 
+                                        group1 = grp1, 
+                                        group2 = grp2, 
+                                        stat = GRangesList(
+                                            lapply(unique(as.character(dml_test$chr)), function(chr) {
+                                                sub <- as.character(dml_test$chr) == chr
+                                                Granges(
+                                                    seqnames = as.character(dml_test$chr)[sub],
+                                                    ranges = IRanges(start = dml_test$pos[sub]), 
+                                                    stat = as.numeric(dml_test$norm_stat)[sub],
+                                                    pval = as.numeric(dml_test$pval)[sub],
+                                                    mu = as.numeric(dml_test$diff)[sub])
+                                            })))
+        
     }
     
     # Call DML and DMR
@@ -250,6 +280,62 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
         
     }
 }
+
+if (grepl(config$options$analysis_type, "MethCP-glm", ignore.case = TRUE)) {
+    
+    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
+        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
+        methCP_obj <- new("MethCP", 
+                          test = "DSS-wald", 
+                          group1 = "notApplicable", 
+                          group2 = "notApplicable", 
+                          stat = GRangesList(
+                              lapply(unique(as.character(dml_test$chr)), function(chr) {
+                                  sub <- as.character(dml_test$chr) == chr
+                                  Granges(
+                                      seqnames = as.character(dml_test$chr)[sub],
+                                      ranges = IRanges(start = dml_test$pos[sub]), 
+                                      stat = as.numeric(dml_test$norm_stat)[sub],
+                                      pval = as.numeric(dml_test$pval)[sub])
+                              })))
+        
+    } else {
+        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+            # Run linear models
+            # Standard beta-binomial two group test
+            message(paste0("Processing chromosome: ", chr))
+            capture.output(dml_test <- DMLtest(bs_obj[seqnames(bs_obj) == chr, ], group1 = grp1, group2 = grp2, smoothing = TRUE))
+            return(dml_test)
+        })
+        dml_test <- do.call(rbind, dml_list)
+        dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
+        # Write complete outfile...
+        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+        methCP_obj <- new("MethCP", 
+                          test = "DSS-wald", 
+                          group1 = "notApplicable", 
+                          group2 = "notApplicable", 
+                          stat = GRangesList(
+                              lapply(unique(as.character(dml_test$chr)), function(chr) {
+                                  sub <- as.character(dml_test$chr) == chr
+                                  Granges(
+                                      seqnames = as.character(dml_test$chr)[sub],
+                                      ranges = IRanges(start = dml_test$pos[sub]), 
+                                      stat = as.numeric(dml_test$norm_stat)[sub],
+                                      pval = as.numeric(dml_test$pval)[sub])
+                              })))
+    }
+    
+    # Call DML and DMR
+    dml <- callDML(dml_test, delta = delta, p.threshold = pval)
+    methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "fisher", sig.level = pval)
+    dmr <- getSigRegion(methCP_obj)
+    
+    # Write DML/DMR outfiles...
+    fwrite(dml, file = paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+    fwrite(dmr, file = paste0(bs_obj_path, "_dmr_MethCP_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+}
+
 
 if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
     if (length(formula_parts) > 1)
