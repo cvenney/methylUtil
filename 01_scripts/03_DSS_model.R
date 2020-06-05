@@ -39,7 +39,7 @@ if (is.null(config$options$formula) | !grepl("\\~", config$options$formula))
 formula <- as.formula(config$options$formula)
 formula_parts <- unlist(strsplit(config$options$formula, split = c("\\~ |\\~|\\s\\+\\s|\\s\\+|\\+\\s|\\+|\\*|\\s\\*|\\s\\*\\s|\\*\\s|\\:")))[-1]
 
-if (length(formula_parts) > 1 & grepl(config$options$analysis_type, "wald|MethCP", ignore.case = TRUE))
+if (length(formula_parts) > 1 & grepl(config$options$analysis_type, "wald|MethCP-wald", ignore.case = TRUE))
     stop("You specified a Wald test with more than one factor.\nPlease verify your input.")
 
 
@@ -49,7 +49,7 @@ samples <- read.table(config$input$sample_info, header = T, stringsAsFactors = F
 if(!all(c("sample", "file", formula_parts) %in% colnames(samples)))
     stop("Samples file must contain a header row with names: \'sample\', \'file\', and given factor(s).")
 
-if (grepl(config$options$analysis_type, "wald|MethCP-wald", ignore.case = TRUE)) {
+if (config$options$analysis_type %in% c("wald", "MethCP-wald")) {
     grp <- formula_parts
     ref <- config$options$reference_condition
     treat <- config$options$treatment_condition
@@ -60,7 +60,7 @@ if (grepl(config$options$analysis_type, "wald|MethCP-wald", ignore.case = TRUE))
     grp2 = samples[samples[, grp] == levels(design$group)[2], "sample"]
 }
 
-if (grepl(config$options$analysis_type, "glm|MethCP-glm", ignore.case = TRUE)) {
+if (config$options$analysis_type %in% c("glm", "MethCP-glm")) {
     if (any(!formula_parts %in% colnames(samples)))
         stop("Factors specified in formula design are not present in the ")
     design <- data.frame(samples[, formula_parts])
@@ -153,7 +153,7 @@ if (file.exists(bs_obj_path)) {
 
 
 # Wald tests
-if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
+if (config$options$analysis_type == "wald") {
     
     if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
@@ -180,7 +180,7 @@ if (grepl(config$options$analysis_type, "wald", ignore.case = TRUE)) {
     fwrite(dmr, file = paste0(bs_obj_path, "_dmr_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
 
-if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
+if (config$options$analysis_type == "MethCP-wald") {
     
     if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
@@ -240,7 +240,7 @@ if (grepl(config$options$analysis_type, "MethCP-wald", ignore.case = TRUE)) {
 
 
 # glm
-if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
+if (config$options$analysis_type == "glm") {
     model_mat <- model.matrix(formula, design)
     for (coef in colnames(model_mat)[-1]) {
         # swap colon for period to use in file paths
@@ -281,7 +281,7 @@ if (grepl(config$options$analysis_type, "glm", ignore.case = TRUE)) {
     }
 }
 
-if (grepl(config$options$analysis_type, "MethCP-glm", ignore.case = TRUE)) {
+if (config$options$analysis_type == "MethCP-glm") {
     
     if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
