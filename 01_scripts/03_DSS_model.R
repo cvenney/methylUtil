@@ -192,7 +192,7 @@ if (config$options$analysis_type == "MethCP-wald") {
                           stat = GRangesList(
                               lapply(unique(as.character(dml_test$chr)), function(chr) {
                                   sub <- as.character(dml_test$chr) == chr
-                                  Granges(
+                                  GRanges(
                                       seqnames = as.character(dml_test$chr)[sub],
                                       ranges = IRanges(start = dml_test$pos[sub]), 
                                       stat = as.numeric(dml_test$norm_stat)[sub],
@@ -218,7 +218,7 @@ if (config$options$analysis_type == "MethCP-wald") {
                                         stat = GRangesList(
                                             lapply(unique(as.character(dml_test$chr)), function(chr) {
                                                 sub <- as.character(dml_test$chr) == chr
-                                                Granges(
+                                                GRanges(
                                                     seqnames = as.character(dml_test$chr)[sub],
                                                     ranges = IRanges(start = dml_test$pos[sub]), 
                                                     stat = as.numeric(dml_test$norm_stat)[sub],
@@ -294,6 +294,7 @@ if (config$options$analysis_type == "MethCP-glm") {
             dml_factor_test <- as.data.frame(dml_factor_test)
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
             dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
+            dml_factor_test$norm_stat <- qnorm(1 - dml_factor_test$pvals/2) * sign(dml_factor_test$stat)
             methCP_obj <- new("MethCP", 
                               test = "DSS-glm", 
                               group1 = "notApplicable", 
@@ -301,13 +302,13 @@ if (config$options$analysis_type == "MethCP-glm") {
                               stat = GRangesList(
                                   lapply(unique(as.character(dml_factor_test$chr)), function(chr) {
                                       sub <- as.character(dml_factor_test$chr) == chr
-                                      Granges(
+                                      GRanges(
                                           seqnames = as.character(dml_factor_test$chr)[sub],
                                           ranges = IRanges(start = dml_factor_test$pos[sub]), 
                                           stat = as.numeric(dml_factor_test$norm_stat)[sub],
                                           pval = as.numeric(dml_factor_test$pval)[sub])
                                   })))
-            names(methCP_obj) <- unique(as.character(dml_factor_test$chr))
+            names(methCP_obj@stat) <- unique(as.character(dml_factor_test$chr))
         } else {
             if(!exists("dml_list")) {
                 dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
@@ -324,9 +325,10 @@ if (config$options$analysis_type == "MethCP-glm") {
             })
             dml_factor_test <- do.call(rbind, dml_factor_test)
             dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
+            dml_factor_test$norm_stat <- qnorm(1 - dml_factor_test$pvals/2) * sign(dml_factor_test$stat)
             # Write complete outfile...
             fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
-            dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
+            dml_factor_test <- dml_factor_test[!is.na(dml_factor_test$pvals) & !is.infinite(dml_factor_test$pvals) & !is.na(dml_factor_test$stat) & !is.infinite(dml_factor_test$stat),]
             methCP_obj <- new("MethCP", 
                               test = "DSS-glm", 
                               group1 = "notApplicable", 
@@ -334,13 +336,13 @@ if (config$options$analysis_type == "MethCP-glm") {
                               stat = GRangesList(
                                   lapply(unique(as.character(dml_factor_test$chr)), function(chr) {
                                       sub <- as.character(dml_factor_test$chr) == chr
-                                      Granges(
+                                      GRanges(
                                           seqnames = as.character(dml_factor_test$chr)[sub],
                                           ranges = IRanges(start = dml_factor_test$pos[sub]), 
                                           stat = as.numeric(dml_factor_test$norm_stat)[sub],
                                           pval = as.numeric(dml_factor_test$pval)[sub])
                                   })))
-            names(methCP_obj) <- unique(as.character(dml_factor_test$chr))
+            names(methCP_obj@stat) <- unique(as.character(dml_factor_test$chr))
         }
         
         # Call DML and DMR
