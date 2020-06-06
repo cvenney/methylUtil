@@ -281,62 +281,78 @@ if (config$options$analysis_type == "glm") {
     }
 }
 
+
+# MethCP-glm
 if (config$options$analysis_type == "MethCP-glm") {
-    
-    if (file.exists(paste0(bs_obj_path, "_all_sites.txt.gz"))) {
-        dml_test <- fread(paste0(bs_obj_path, "_all_sites.txt.gz"))
-        methCP_obj <- new("MethCP", 
-                          test = "DSS-wald", 
-                          group1 = "notApplicable", 
-                          group2 = "notApplicable", 
-                          stat = GRangesList(
-                              lapply(unique(as.character(dml_test$chr)), function(chr) {
-                                  sub <- as.character(dml_test$chr) == chr
-                                  Granges(
-                                      seqnames = as.character(dml_test$chr)[sub],
-                                      ranges = IRanges(start = dml_test$pos[sub]), 
-                                      stat = as.numeric(dml_test$norm_stat)[sub],
-                                      pval = as.numeric(dml_test$pval)[sub])
-                              })))
+    model_mat <- model.matrix(formula, design)
+    for (coef in colnames(model_mat)[-1]) {
+        # swap colon for period to use in file paths
+        coef2 <- gsub(":", ".", coef)
+        if (file.exists(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))) {
+            message(paste0("Previous model results detected, loading results for: ", coef2))
+            dml_factor_test <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
+            dml_factor_test <- as.data.frame(dml_factor_test)
+            class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
+            methCP_obj <- new("MethCP", 
+                              test = "DSS-glm", 
+                              group1 = "notApplicable", 
+                              group2 = "notApplicable", 
+                              stat = GRangesList(
+                                  lapply(unique(as.character(dml_factor_test$chr)), function(chr) {
+                                      sub <- as.character(dml_factor_test$chr) == chr
+                                      Granges(
+                                          seqnames = as.character(dml_factor_test$chr)[sub],
+                                          ranges = IRanges(start = dml_factor_test$pos[sub]), 
+                                          stat = as.numeric(dml_factor_test$norm_stat)[sub],
+                                          pval = as.numeric(dml_factor_test$pval)[sub])
+                                  })))
+        } else {
+            if(!exists("dml_list")) {
+                dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+                    # Run linear models
+                    # Linear model with family nested in treatment
+                    message(paste0("Fitting model for chromosome: ", chr))
+                    capture.output(dml_test <- DMLfit.multiFactor(bs_obj[seqnames(bs_obj) == chr,], design = design, formula = formula, smoothing = TRUE))
+                    return(dml_test)
+                })
+            }
+            dml_factor_test <- lapply(dml_list, function(chr) {
+                test <- DMLtest.multiFactor(chr, coef)
+                return(test)
+            })
+            dml_factor_test <- do.call(rbind, dml_factor_test)
+            dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
+            # Write complete outfile...
+            fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+            methCP_obj <- new("MethCP", 
+                              test = "DSS-glm", 
+                              group1 = "notApplicable", 
+                              group2 = "notApplicable", 
+                              stat = GRangesList(
+                                  lapply(unique(as.character(dml_factor_test$chr)), function(chr) {
+                                      sub <- as.character(dml_factor_test$chr) == chr
+                                      Granges(
+                                          seqnames = as.character(dml_factor_test$chr)[sub],
+                                          ranges = IRanges(start = dml_factor_test$pos[sub]), 
+                                          stat = as.numeric(dml_factor_test$norm_stat)[sub],
+                                          pval = as.numeric(dml_factor_test$pval)[sub])
+                                  })))
+        }
         
-    } else {
-        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
-            # Run linear models
-            # Standard beta-binomial two group test
-            message(paste0("Processing chromosome: ", chr))
-            capture.output(dml_test <- DMLtest(bs_obj[seqnames(bs_obj) == chr, ], group1 = grp1, group2 = grp2, smoothing = TRUE))
-            return(dml_test)
-        })
-        dml_test <- do.call(rbind, dml_list)
-        dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
-        # Write complete outfile...
-        fwrite(dml_test, file = paste0(bs_obj_path, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
-        methCP_obj <- new("MethCP", 
-                          test = "DSS-wald", 
-                          group1 = "notApplicable", 
-                          group2 = "notApplicable", 
-                          stat = GRangesList(
-                              lapply(unique(as.character(dml_test$chr)), function(chr) {
-                                  sub <- as.character(dml_test$chr) == chr
-                                  Granges(
-                                      seqnames = as.character(dml_test$chr)[sub],
-                                      ranges = IRanges(start = dml_test$pos[sub]), 
-                                      stat = as.numeric(dml_test$norm_stat)[sub],
-                                      pval = as.numeric(dml_test$pval)[sub])
-                              })))
+        # Call DML and DMR
+        dml <- callDML(dml_factor_test, delta = 0, p.threshold = pval)
+        methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "fisher", sig.level = pval)
+        dmr <- getSigRegion(methCP_obj)
+        
+        # Write DML/DMR outfiles...
+        fwrite(dml, file = paste0(bs_obj_path, "_", coef2, "_dml_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        fwrite(dmr, file = paste0(bs_obj_path, "_", coef2, "_dmr_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
+        
     }
-    
-    # Call DML and DMR
-    dml <- callDML(dml_test, delta = delta, p.threshold = pval)
-    methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "fisher", sig.level = pval)
-    dmr <- getSigRegion(methCP_obj)
-    
-    # Write DML/DMR outfiles...
-    fwrite(dml, file = paste0(bs_obj_path, "_dml_delta", delta, "_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
-    fwrite(dmr, file = paste0(bs_obj_path, "_dmr_MethCP_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
 }
 
 
+# dmrseq
 if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
     if (length(formula_parts) > 1)
         stop("dmrseq imlementation currently only supports one factor")
