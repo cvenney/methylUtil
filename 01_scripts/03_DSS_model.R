@@ -10,10 +10,10 @@ if (length(args) != 1)
     stop("Usage: DSS_model.R <config.yml>")
 
 ## Install and load necessary packages
-for (p in c("data.table", "BiocManager", "DSS", "bsseq", "dmrseq", "MethCP", "parallel", "configr", "tidyverse")) {
+for (p in c("data.table", "BiocManager", "DSS", "bsseq", "GenomicRanges", "dmrseq", "MethCP", "parallel", "configr", "tidyverse")) {
     if (!suppressMessages(require(p, character.only = T))) {
         message(paste("Installing:", p))
-        if (p %in% c("DSS", "bsseq")) {
+        if (p %in% c("DSS", "bsseq", "GenomicRanges")) {
             BiocManager::install(p)
         } else if (p == "MethCP") { 
             devtools::install_github(repo = "kylewellband/MethCP", ref = "bug-fixes", repos = BiocManager::repositories())
@@ -293,6 +293,7 @@ if (config$options$analysis_type == "MethCP-glm") {
             dml_factor_test <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
             dml_factor_test <- as.data.frame(dml_factor_test)
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
+            dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
             methCP_obj <- new("MethCP", 
                               test = "DSS-glm", 
                               group1 = "notApplicable", 
@@ -306,6 +307,7 @@ if (config$options$analysis_type == "MethCP-glm") {
                                           stat = as.numeric(dml_factor_test$norm_stat)[sub],
                                           pval = as.numeric(dml_factor_test$pval)[sub])
                                   })))
+            names(methCP_obj) <- unique(as.character(dml_factor_test$chr))
         } else {
             if(!exists("dml_list")) {
                 dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
@@ -324,6 +326,7 @@ if (config$options$analysis_type == "MethCP-glm") {
             dml_factor_test$fdrs <- p.adjust(dml_factor_test$pval, method = "BH")
             # Write complete outfile...
             fwrite(dml_factor_test, file = paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"), quote = FALSE, sep = "\t")
+            dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
             methCP_obj <- new("MethCP", 
                               test = "DSS-glm", 
                               group1 = "notApplicable", 
@@ -337,6 +340,7 @@ if (config$options$analysis_type == "MethCP-glm") {
                                           stat = as.numeric(dml_factor_test$norm_stat)[sub],
                                           pval = as.numeric(dml_factor_test$pval)[sub])
                                   })))
+            names(methCP_obj) <- unique(as.character(dml_factor_test$chr))
         }
         
         # Call DML and DMR
