@@ -74,11 +74,13 @@ if (is.null(config$options$n_cores)) {
     warning("\'n_cores\' not specified. Default to using 1 core.")
     n_cores <- 1
     setDTthreads(n_cores)
+    bp_params <- MulticoreParam(workers = n_cores)
 } else {
     if (config$options$n_cores == 0)
         warning("Using all cores will require a lot of memory")
     n_cores <- ifelse(config$options$n_cores == 0, detectCores(), config$options$n_cores)
     setDTthreads(n_cores)
+    bp_params <- MulticoreParam(workers = n_cores)
 }
 
 # Set coverage options for filtering
@@ -199,6 +201,7 @@ if (config$options$analysis_type == "MethCP-wald") {
                                       pval = as.numeric(dml_test$pval)[sub],
                                       mu = as.numeric(dml_test$diff)[sub])
                                   })))
+        names(methCP_obj@stat) <- unique(as.character(dml_test$chr))
     } else {
         dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
             # Run linear models
@@ -211,26 +214,26 @@ if (config$options$analysis_type == "MethCP-wald") {
         dml_test$fdr <- p.adjust(dml_test$pval, method = "BH")
         # Write complete outfile...
         fwrite(dml_test, file = paste0(bs_obj_path, "_wald_all_sites.txt.gz"), quote = FALSE, sep = "\t")
-        methCP_obj <- methCP_obj <- new("MethCP", 
-                                        test = "DSS-wald", 
-                                        group1 = grp1, 
-                                        group2 = grp2, 
-                                        stat = GRangesList(
-                                            lapply(unique(as.character(dml_test$chr)), function(chr) {
-                                                sub <- as.character(dml_test$chr) == chr
-                                                GRanges(
-                                                    seqnames = as.character(dml_test$chr)[sub],
-                                                    ranges = IRanges(start = dml_test$pos[sub]), 
-                                                    stat = as.numeric(dml_test$norm_stat)[sub],
-                                                    pval = as.numeric(dml_test$pval)[sub],
-                                                    mu = as.numeric(dml_test$diff)[sub])
-                                            })))
-        
+        methCP_obj <- new("MethCP", 
+                          test = "DSS-wald", 
+                          group1 = grp1, 
+                          group2 = grp2, 
+                          stat = GRangesList(
+                              lapply(unique(as.character(dml_test$chr)), function(chr) {
+                                  sub <- as.character(dml_test$chr) == chr
+                                  GRanges(
+                                      seqnames = as.character(dml_test$chr)[sub],
+                                      ranges = IRanges(start = dml_test$pos[sub]), 
+                                      stat = as.numeric(dml_test$norm_stat)[sub],
+                                      pval = as.numeric(dml_test$pval)[sub],
+                                      mu = as.numeric(dml_test$diff)[sub])
+                              })))
+        names(methCP_obj@stat) <- unique(as.character(dml_test$chr))
     }
     
     # Call DML and DMR
     dml <- callDML(dml_test, delta = delta, p.threshold = pval)
-    methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "weighted-coverage", sig.level = pval)
+    methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "weighted-coverage", sig.level = pval, BPPARAM = bp_params)
     dmr <- getSigRegion(methCP_obj)
     
     # Write DML/DMR outfiles...
@@ -347,7 +350,7 @@ if (config$options$analysis_type == "MethCP-glm") {
         
         # Call DML and DMR
         dml <- callDML(dml_factor_test, delta = 0, p.threshold = pval)
-        methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "fisher", sig.level = pval)
+        methCP_obj <- segmentMethCP(methCP_obj, bs_obj, region.test = "fisher", sig.level = pval, BPPARAM = bp_params)
         dmr <- getSigRegion(methCP_obj)
         
         # Write DML/DMR outfiles...
