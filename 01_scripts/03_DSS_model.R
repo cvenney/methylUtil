@@ -294,10 +294,10 @@ if (config$options$analysis_type == "MethCP-glm") {
         if (file.exists(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))) {
             message(paste0("Previous model results detected, loading results for: ", coef2))
             dml_factor_test <- fread(paste0(bs_obj_path, "_", coef2, "_all_sites.txt.gz"))
+            dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
+            dml_factor_test[, norm_stat := qnorm(1 - pvals/2) * sign(stat)]
             dml_factor_test <- as.data.frame(dml_factor_test)
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
-            dml_factor_test <- dml_factor_test[!is.na(pvals) & !is.infinite(pvals) & !is.na(stat) & !is.infinite(stat)]
-            dml_factor_test$norm_stat <- qnorm(1 - dml_factor_test$pvals/2) * sign(dml_factor_test$stat)
             methCP_obj <- new("MethCP", 
                               test = "DSS-glm", 
                               group1 = "notApplicable", 
