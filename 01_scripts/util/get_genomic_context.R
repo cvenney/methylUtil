@@ -1,20 +1,24 @@
 #!/usr/bin/env Rscript
 ## get_genomic_context.R
 
-if (suppressPackageStartupMessages(!require(tidyverse))) {
-    install.packages("tidyverse");suppressPackageStartupMessages(require(tidyverse))
-}
-
 args <- commandArgs(TRUE)
-# setwd("~/Desktop/methylUtil/"); args <- "05_bed_files/adults_6x7_min5_max20_groupWild_dmr_pval0.001_dmr_context.txt"
+# setwd("/Volumes/MacHD/BernatchezProjects/sasa_epi/methylUtil/"); args <- "06_methylation_results/juveniles_8x8_min5_max20_groupWild_dmr_pval0.001_dmr_context.txt"
 
 if (length(args) != 1) {
     stop("Usage: get_genomic_context.R <bedtools_intersect_outfile>")
 }
 
+for (p in c("tidyverse", "data.table")) {
+    if (!suppressPackageStartupMessages(require(p, character.only = T))) {
+        install.packages(p, repos = "https://cloud.r-project.org", dependencies = T)
+        suppressPackageStartupMessages(library(p, character.only = T))
+    }
+}
+
+
 features <- c("region", "gene", "CDS", "exon", "mRNA", "three_prime_UTR", "five_prime_UTR", "transcript", "pseudogene", "lnc_RNA")
 
-x <- read.table(args[1], sep = "\t", stringsAsFactors = FALSE)
+x <- fread(args[1], sep = "\t")
 
 xtab <- as.data.frame(table(paste(x$V1, x$V2, sep = ":"), x$V9)) %>%
     pivot_wider(., id_cols = Var1, names_from = Var2, values_from = Freq)
