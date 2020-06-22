@@ -220,7 +220,7 @@ DMR_heatmap <- function(dmrs, bs_obj, design, anno_columns, sample_info, coef = 
     print(Heatmap(
         matrix = as.matrix(dmr_M / dmr_cov)[, col_order],
         cluster_rows = TRUE,
-        clustering_distance_rows = "pearson",
+        clustering_distance_rows = "euclidean",
         row_title = NULL,
         cluster_columns = FALSE,
         use_raster = TRUE,

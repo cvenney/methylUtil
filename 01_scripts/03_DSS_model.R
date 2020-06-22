@@ -167,7 +167,7 @@ if (config$options$analysis_type == "wald") {
     if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
     } else {
-        dml_list <- lapply(grep("NC_02", unique(seqnames(bs_obj)), value = TRUE), function(chr) {
+        dml_list <- lapply(chr$V1, function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
             message(paste0("Processing chromosome: ", chr))
@@ -210,7 +210,7 @@ if (config$options$analysis_type == "MethCP-wald") {
                                   })))
         names(methCP_obj@stat) <- unique(as.character(dml_test$chr))
     } else {
-        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+        dml_list <- lapply(chr$V1, function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
             message(paste0("Processing chromosome: ", chr))
@@ -321,7 +321,7 @@ if (config$options$analysis_type == "MethCP-glm") {
             names(methCP_obj@stat) <- unique(as.character(dml_factor_test$chr))
         } else {
             if(!exists("dml_list")) {
-                dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+                dml_list <- lapply(chr$V1, function(chr) {
                     # Run linear models
                     # Linear model with family nested in treatment
                     message(paste0("Fitting model for chromosome: ", chr))
@@ -373,7 +373,7 @@ if (grepl(config$options$analysis_type, "dmrseq", ignore.case = TRUE)) {
     if (length(formula_parts) > 1)
         stop("dmrseq imlementation currently only supports one factor")
     pData(bs_obj) <- samples
-    regions <- dmrseq(bs_obj, testCovariate = formula_parts,
+    regions <- dmrseq(bs_obj[seqnames(bs_obj) %in% chr$V1], testCovariate = formula_parts,
                       cutoff = 0.05, BPPARAM = MulticoreParam(1))
     fwrite(as.data.frame(regions), file = paste0(bs_obj_path, "_", formula_parts, "_dmrseq_pval", pval,".txt.gz"), quote = FALSE, sep = "\t")
     
