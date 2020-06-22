@@ -47,6 +47,7 @@ echo "Printing GeneIDs..."
 awk '($9 == "gene") {print $15}' ${BED%.*}_dmr_context.txt | \
 	sed -e 's/ID=//' -e 's/;.*GeneID:/:/' -e 's/;.*//' |
 	sort | uniq > ${BED%.*}_geneids.txt
+Rscript 01_scripts/util/get_gene_names.R ${BED%.*}_geneids.txt
 
 echo "Summarizing results..."
 01_scripts/util/get_genomic_context.R ${BED%.*}_dmr_context.txt
