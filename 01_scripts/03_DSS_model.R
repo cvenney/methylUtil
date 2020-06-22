@@ -153,6 +153,13 @@ if (file.exists(bs_obj_path)) {
     saveRDS(object = bs_obj, file = bs_obj_path, compress = "gzip")
 }
 
+if (file.exists("02_reference/chrs.txt")) {
+    chr <- fread("02_reference/chrs.txt", header = FALSE)
+    chr <- chr[V1 %in% as.character(runValue(seqnames(bs_obj)))] 
+} else {
+    chr <- data.table(V1 = as.character(runValue(seqnames(bs_obj))))
+}
+
 
 # Wald tests
 if (config$options$analysis_type == "wald") {
@@ -160,7 +167,7 @@ if (config$options$analysis_type == "wald") {
     if (file.exists(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))) {
         dml_test <- fread(paste0(bs_obj_path, "_wald_all_sites.txt.gz"))
     } else {
-        dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+        dml_list <- lapply(grep("NC_02", unique(seqnames(bs_obj)), value = TRUE), function(chr) {
             # Run linear models
             # Standard beta-binomial two group test
             message(paste0("Processing chromosome: ", chr))
@@ -255,7 +262,7 @@ if (config$options$analysis_type == "glm") {
             class(dml_factor_test) <- c(class(dml_factor_test), "DMLtest.multiFactor")
         } else {
             if(!exists("dml_list")) {
-                dml_list <- lapply(unique(seqnames(bs_obj)), function(chr) {
+                dml_list <- lapply(chr$V1, function(chr) {
                     # Run linear models
                     # Linear model with family nested in treatment
                     message(paste0("Fitting model for chromosome: ", chr))
