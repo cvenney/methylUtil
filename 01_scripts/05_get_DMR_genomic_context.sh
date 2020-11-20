@@ -41,10 +41,10 @@ if [ ! -e ${GFF%%.*}_with_utrs.gff ];then
 fi
 
 echo "Intersecting DMRs with GFF..."
-bedtools intersect -a $BED -b ${GFF%%.*}_with_utrs.gff -wao > ${BED%.*}_dmr_context.txt
+bedtools window -a ${GFF%%.*}_with_utrs.gff -b $BED -l 5000 -r 5000 -sw > ${BED%.*}_dmr_context.txt
 
 echo "Printing GeneIDs..."
-awk '($9 == "gene") {print $15}' ${BED%.*}_dmr_context.txt | \
+awk '($3 == "gene") {print $9}' ${BED%.*}_dmr_context.txt | \
 	sed -e 's/ID=//' -e 's/;.*GeneID:/:/' -e 's/;.*//' |
 	sort | uniq > ${BED%.*}_geneids.txt
 Rscript 01_scripts/util/get_gene_names.R ${BED%.*}_geneids.txt

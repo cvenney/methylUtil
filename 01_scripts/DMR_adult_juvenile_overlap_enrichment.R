@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 args <- commandArgs(T)
-# setwd("~/Projects/sasa_epi/methylUtil") ; args <- c("1000", "06_methylation_results/adults_6x6_min5_max20_groupWild_dmr_pval0.001.txt.gz", "05_bed_files/genes.bed")
+# setwd("~/Projects/sasa_epi/methylUtil") ; args <- c("1000", "06_methylation_results/adults_6x6_min5_max20_groupWild_dmr_pval0.001.txt.gz", "06_methylation_results/juveniles_8x8_min5_max20_groupWild_dmr_pval0.001.txt.gz")
 
 ## Sanity checking
 if (length(args) != 3)
@@ -29,7 +29,7 @@ if (any(grepl("^NC_02", idx$V1)))
 
 max_bp <- idx[nrow(idx), V3]
 
-# Read and count DMC at pval and FDR thresholds
+# # Read and count DMC at pval and FDR thresholds
 # cpg <- fread(sub("_dmr_.*", replacement = "_all_sites.txt.gz", args[2]))
 # cpg <- cpg[!is.na(stat)]
 # dmls <- cpg[pvals < as.numeric(sub(".*pval", "", sub(".txt.gz", "", args[2])))]
@@ -60,23 +60,20 @@ dmrs <- GRanges(
 # Read and convert gene features
 features <- fread(args[3])
 features <- GRanges(
-    seqnames = Rle(features$V1),
-    ranges = IRanges(start = features$V2, end = features$V3),
-    strand = features$V6,
-    GeneID = features$V4
+    seqnames = Rle(features$chr),
+    ranges = IRanges(start = features$start, end = features$end)
 )
-#promotor <- promoters(features, upstream = 1000, downstream = 0)
 
 # calc real number of overlaps
-# real_dml <- length(unique(subjectHits(findOverlaps(dmls, features))))
-# real_fdr <- length(unique(subjectHits(findOverlaps(fdrs, features))))
-real_dmr <- length(unique(c(subjectHits(findOverlaps(dmrs, features, maxgap = 5000))))) #, subjectHits(findOverlaps(dmrs, promotor)))))
+# real_dml <- length(unique(queryHits(findOverlaps(dmls, features))))
+# real_fdr <- length(unique(queryHits(findOverlaps(fdrs, features))))
+real_dmr <- length(unique(queryHits(findOverlaps(dmrs, features))))
 
 # Run resampling
 sim <- mclapply(1:as.numeric(args[1]), mc.cores = detectCores(), function(s) {
     
     # resample regions based on sig. DMRs
-    chr <- sample(idx$V1, length(dmrs), replace = TRUE, prob = idx$V2 / sum(idx$V2))
+    chr <- sample(idx$V1, length(dmrs), replace = TRUE, prob = idx$V3 / sum(idx$V3))
     pos <- numeric(length(dmrs))
     for(i in 1:length(dmrs)) {
         flag <- 1
@@ -91,19 +88,36 @@ sim <- mclapply(1:as.numeric(args[1]), mc.cores = detectCores(), function(s) {
         seqnames = Rle(chr),
         ranges = IRanges(start = pos, width = width(dmrs))
     )
-    hits_dmr1 <- c(subjectHits(findOverlaps(sim_dmrs1, features, maxgap = 5000))) #, subjectHits(findOverlaps(sim_dmrs1, promotor)))
-    sim_dmr1 <- length(unique(hits_dmr1))
+    chr1 <- sample(idx$V1, length(features), replace = TRUE, prob = idx$V3 / sum(idx$V3))
+    pos1 <- numeric(length(features))
+    for(i in 1:length(features)) {
+        flag <- 1
+        while(flag) {
+            pos1[i] <- sample(idx[V1 == chr1[i], V2], 1)
+            if ((pos1[i] + width(features[i])) <= idx[V1 == chr1[i], V2]) {
+                flag <- 0
+            }
+        }
+    }  
+    sim_dmrs2 <- GRanges(
+        seqnames = Rle(chr1),
+        ranges = IRanges(start = pos1, width = width(features))
+    )
     
-    # resample DMCs over all CpG sites
+    
+    hits_dmr1 <- findOverlaps(sim_dmrs1, sim_dmrs2)
+    sim_dmr1 <- length(unique(queryHits(hits_dmr1)))
+    
+    # # resample DMCs over all CpG sites
     # sim_sig_cpg <- sample(1:length(cpg), length(dmls), replace = FALSE)
     # sim_dmls <- cpg[sim_sig_cpg]
     # hits_dml <- findOverlaps(sim_dmls, features)
-    # sim_dml <- length(unique(subjectHits(hits_dml)))
+    # sim_dml <- length(unique(queryHits(hits_dml)))
     # 
     # # sub-sample for DMC passing FDR
     # sim_fdrs <- sim_dmls[sample(1:length(sim_dmls), length(fdrs), replace = FALSE)]
     # hits_fdr <- findOverlaps(sim_fdrs, features)
-    # sim_fdr <- length(unique(subjectHits(hits_fdr)))
+    # sim_fdr <- length(unique(queryHits(hits_fdr)))
     # 
     # # DMRs from random DMCs
     # dml_test <- cpg
@@ -120,18 +134,16 @@ sim <- mclapply(1:as.numeric(args[1]), mc.cores = detectCores(), function(s) {
     #         ranges = IRanges(start = dml_test$start, end = dml_test$end)
     #     )
     #     hits_dmr2 <- findOverlaps(sim_dmrs2, features)
-    #     sim_dmr2 <- length(unique(subjectHits(hits_dmr2)))
+    #     sim_dmr2 <- length(unique(queryHits(hits_dmr2)))
     # }
     # 
-    # return(c(s, sim_dml, sim_fdr, sim_dmr1, sim_dmr2))
     return(c(s, sim_dmr1))
 })
 
 df <- as.data.frame(do.call(rbind, sim))
-# colnames(df) <- c("Replicate", "DMC_overlaps", "FDR_overlaps", "DMR_region_overlaps", "DMR_from_DMC_overlaps")
 colnames(df) <- c("Replicate", "DMR_region_overlaps")
 
-fwrite(df, sub("dmr_", "resampled_dmrs_", args[2]), sep = "\t", quote = FALSE)
+# fwrite(df, sub("dmr_", "resampled_dmrs_", args[2]), sep = "\t", quote = FALSE)
 
 # dml_hist <- ggplot(df, aes(x = DMC_overlaps)) +
 #     geom_histogram(binwidth = 5) +
@@ -154,20 +166,21 @@ fwrite(df, sub("dmr_", "resampled_dmrs_", args[2]), sep = "\t", quote = FALSE)
 dmr1_hist <- ggplot(df, aes(x = DMR_region_overlaps)) +
     geom_histogram(binwidth = 5) +
     theme_classic() +
-    labs(x = "Number of Overlapped Genes", y = "Frequency", title = paste0("DMR region: N = ", real_dmr, "; p = ", sum(df$DMR_region_overlaps > real_dmr) / nrow(df))) +
+    labs(x = "Number of Overlapped Genes", y = "Frequency", title = paste0("DMR region: N = ", real_dmr, "; p = ", (df$DMR_region_overlaps > real_dmr) / nrow(df))) +
     theme(axis.text = element_text(size = 8, colour = "black"),
           axis.title = element_text(size = 8, colour = "black"),
           plot.title = element_text(size = 10, face = "bold")) +
     geom_vline(xintercept = real_dmr, colour = "red")
 
+dmr1_hist
+
 # dmr2_hist <- ggplot(df, aes(x = DMR_from_DMC_overlaps)) +
 #     geom_histogram(binwidth = 5) +
 #     theme_classic() +
-#     labs(x = "Number of Overlapped Genes", y = "Frequency", title = paste0("DMR <- DMC: N = ", real_dmr, "; p = ", sum(df$DMR_from_DMC_overlaps > real_dmr) / nrow(df))) +
+#     labs(x = "Number of Overlapped Genes", y = "Frequency", title = paste0("DMR <- DMC: N = ", real_dmr, "; p = ", (df$DMR_from_DMC_overlaps > real_dmr) / nrow(df))) +
 #     theme(axis.text = element_text(size = 8, colour = "black"),
 #           axis.title = element_text(size = 8, colour = "black"),
 #           plot.title = element_text(size = 10, face = "bold")) +
 #     geom_vline(xintercept = real_dmr, colour = "red")
 
 # save_plot(sub(".txt.gz", "_resampled_gene_overlap.png", args[2]), plot_grid(dml_hist, fdr_hist, dmr1_hist, dmr2_hist, ncol = 2, nrow = 2), base_height = 7, base_width = 7)
-save_plot(sub(".txt.gz", "_resampled_gene_overlap.png", args[2]), dmr1_hist, base_height = 7, base_width = 7)

@@ -2,7 +2,7 @@
 # get_gene_names.R
 
 args <- commandArgs(TRUE)
-# args <- '/Volumes/MacHD/BernatchezProjects/sasa_epi/methylUtil/06_methylation_results/adults_6x6_min5_max20_groupWild_dmr_pval0.001_geneids.txt'
+# setwd("~/Projects/sasa_epi/methylUtil"); args <- '06_methylation_results/adults_6x6_min5_max20_groupWild_dmr_pval0.001_geneids.txt'
 
 if (length(args) != 1) {
     stop("USAGE: get_gene_name.R <gene ID file>")
@@ -31,6 +31,6 @@ if (any(grepl("^gene", geneid$V1))) {
 geneid <- merge(x = geneid, y = ref, by.x = "LOC", by.y = "LOC", all.x = TRUE)
 geneid[, NAME := sub(", transcript variant X[0-9]+", "", name)]
 
-names <- unique(geneid[,.("GeneID" = V1, NAME)])
+names <- unique(geneid[,.("GeneID" = V1, "Symbol" = symbol, NAME)])
 
 fwrite(names, file = sub("geneids.txt", "gene_names.txt", args[1]), sep = "\t")
