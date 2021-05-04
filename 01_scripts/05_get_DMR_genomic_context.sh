@@ -24,30 +24,22 @@ fi
 
 BED="$(echo $INPUT | perl -pe 's/(\.txt)(\.gz)//g').bed"
 
-GFF="02_reference/genes.gff.gz"
+GFF="02_reference/genes.gff"
 
 if [ ! -f $GFF ];then
-    if [ ! -f ${GFF%.*} ];then
-        echo "Error: GFF file not found!"
-        exit
-    else
-    	GFF=${GFF%.*}
-    fi
+    echo "Error: GFF file not found!"
+    exit
 fi
 
-if [ ! -e ${GFF%%.*}_with_utrs.gff ];then
-	echo "Adding UTRs to GFF file..."
-	python3 01_scripts/util/NCBI_add_utrs_to_gff.py $GFF > ${GFF%%.*}_with_utrs.gff
-fi
 
 echo "Intersecting DMRs with GFF..."
-bedtools window -a ${GFF%%.*}_with_utrs.gff -b $BED -l 5000 -r 5000 -sw > ${BED%.*}_dmr_context.txt
+bedtools window -a ${GFF} -b $BED -l 5000 -r 5000 -sw > ${BED%.*}_dmr_context.txt
 
 echo "Printing GeneIDs..."
 awk '($3 == "gene") {print $9}' ${BED%.*}_dmr_context.txt | \
 	sed -e 's/ID=//' -e 's/;.*GeneID:/:/' -e 's/;.*//' |
 	sort | uniq > ${BED%.*}_geneids.txt
-Rscript 01_scripts/util/get_gene_names.R ${BED%.*}_geneids.txt
+# Rscript 01_scripts/util/get_gene_names.R ${BED%.*}_geneids.txt
 
-echo "Summarizing results..."
-01_scripts/util/get_genomic_context.R ${BED%.*}_dmr_context.txt
+# echo "Summarizing results..."
+# 01_scripts/util/get_genomic_context.R ${BED%.*}_dmr_context.txt
