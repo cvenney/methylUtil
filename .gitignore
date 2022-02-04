@@ -16,14 +16,10 @@
 *.txt
 *.png
 *.pdf
-*~
 10_log_files/*
 11_metrics/*
 02_reference/*
 03_raw_bedGraphs/*
-07_jackknife_results_maternal/*
-08_RDAs/*
-09_Kyle_DMRs/*
 10_methylDB/*
 samples_jackknife_family/*
 samples_jackknife_maternal/*
