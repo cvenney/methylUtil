@@ -21,9 +21,6 @@
 11_metrics/*
 02_reference/*
 03_raw_bedGraphs/*
-04_filtered_bedGraphs/*
-05_bed_files/*
-07_jackknife_results/*
 07_jackknife_results_maternal/*
 08_RDAs/*
 09_Kyle_DMRs/*
